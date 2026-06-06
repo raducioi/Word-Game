@@ -333,18 +333,18 @@
     $("count").textContent = count;
     chosungEl.textContent = toChosung(current.a);
     answerEl.textContent = "";
-    // 힌트(장르) 초기화
+    // 힌트(장르) 초기화 — 새 문제마다 다시 가림
     catEl.classList.add("hidden");
     catEl.textContent = "";
-    hintBtn.classList.remove("hidden");
     promptEl.textContent = "정답을 맞혀보세요! 🤔";
     promptEl.className = "prompt";
   }
 
   function showHint() {
-    catEl.textContent = "장르: " + current.c;
+    if (!current) return;
+    catEl.textContent = "💡 " + current.c;
     catEl.classList.remove("hidden");
-    hintBtn.classList.add("hidden");
+    hintBtn.blur(); // 포커스 해제 → 스페이스/엔터 중복 입력 방지
   }
 
   function revealAnswer() {
@@ -369,10 +369,11 @@
   $("startBtn").addEventListener("click", startGame);
   $("restartBtn").addEventListener("click", startGame);
   $("quitBtn").addEventListener("click", (e) => { e.stopPropagation(); endGame(); });
-  hintBtn.addEventListener("click", (e) => { e.stopPropagation(); if (phase === "quiz") showHint(); });
+  hintBtn.addEventListener("click", (e) => { e.stopPropagation(); showHint(); });
   $("tapArea").addEventListener("click", handleTap);
   document.addEventListener("keydown", (e) => {
     if (phase === "idle") return;
+    if (e.target && e.target.tagName === "BUTTON") return; // 버튼 포커스 시 중복 방지
     if (e.key === " " || e.key === "Enter") { e.preventDefault(); handleTap(); }
   });
 </script>

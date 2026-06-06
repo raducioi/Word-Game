@@ -240,7 +240,15 @@ button:active { transform: scale(.96); }
 
 /* ===== 초성 퀴즈 ===== */
 .hidden { display: none !important; }
-.hint-row { text-align: center; min-height: 2.4em; margin-bottom: 2px; }
+.hint-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.6em;
+  margin-bottom: 2px;
+}
 .btn-hint {
   background: rgba(255,209,102,.15);
   color: var(--accent);
@@ -272,9 +280,9 @@ button:active { transform: scale(.96); }
   border: 1px solid rgba(255,209,102,.4);
   padding: 4px 14px;
   border-radius: 99px;
-  font-size: .8rem;
+  font-size: .85rem;
   font-weight: 700;
-  margin: 6px 0 14px;
+  margin: 0;
 }
 .chosung-display {
   text-align: center;
