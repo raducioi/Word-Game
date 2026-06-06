@@ -15,9 +15,10 @@ body {
   background: radial-gradient(circle at 50% 0%, var(--bg2), var(--bg) 70%);
   color: var(--text);
   display: flex;
-  align-items: center;
+  align-items: safe center; /* 내용이 화면보다 길면 위로 정렬 후 스크롤 */
   justify-content: center;
   min-height: 100vh;
+  min-height: 100dvh;
   padding: 20px;
 }
 
@@ -350,4 +351,64 @@ button:active { transform: scale(.96); }
   font-size: .9rem;
   margin-top: 4px;
   min-height: 1.2em;
+}
+
+/* ===== 반응형: 가로 모드 등 화면 높이가 낮을 때 ===== */
+@media (max-height: 680px) {
+  body { padding: 8px; }
+  .game { min-height: 0; padding: 14px 18px 14px; }
+  h1 { font-size: 1.15rem; margin-bottom: 2px; }
+  .subtitle { display: none; }            /* 가로 모드: 부제목 숨김 */
+  .footer-note { display: none; }          /* 가로 모드: 푸터 숨김 */
+  .hud { margin-bottom: 8px; }
+  .timer-wrap { margin-bottom: 6px; }
+  .countdown { font-size: 1.7rem; height: 1.15em; line-height: 1.15em; }
+  .tile { width: 54px; height: 60px; font-size: 1.8rem; }
+  .puzzle { gap: 8px; margin: 6px 0 4px; }
+  .hint { margin: 8px 0 4px; }
+  .photo-wrap { height: 42vh; min-height: 150px; margin: 4px 0 6px; }
+  .chosung-display { font-size: 2rem; padding: 10px 6px; }
+  .answer-text { font-size: 1.3rem; padding: 8px 6px; }
+  .hint-row { min-height: 2.2em; }
+
+  /* 오버레이(시작/종료 화면) 압축 */
+  .overlay { padding: 16px; gap: 10px; }
+  .overlay h2 { font-size: 1.4rem; }
+  .overlay .big-score { font-size: 2.2rem; }
+  .rules { font-size: .8rem; line-height: 1.5; padding: 10px 14px; }
+  .genre-select { gap: 6px; }
+  .genre-chip { padding: 6px 12px; font-size: .85rem; }
+  .btn-primary { padding: 12px 20px; }
+
+  /* 메인(랜딩) 카드 압축 */
+  .home h1 { font-size: 1.5rem; }
+  .home .subtitle { margin-bottom: 14px; }
+  .home-card { padding: 14px; margin-bottom: 10px; }
+  .home-card .emoji { font-size: 2rem; }
+}
+
+@media (max-height: 480px) {
+  .tile { width: 46px; height: 52px; font-size: 1.5rem; }
+  .photo-wrap { height: 46vh; min-height: 120px; }
+  .rules { font-size: .76rem; }
+}
+
+/* 가로 모드: 인물 퀴즈를 사진(왼쪽)+정보(오른쪽) 2단으로 */
+@media (orientation: landscape) and (max-height: 600px) {
+  #tapArea:has(.photo-wrap) {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    column-gap: 16px;
+    align-items: center;
+  }
+  #tapArea:has(.photo-wrap) > .photo-wrap {
+    grid-column: 1;
+    grid-row: 1 / span 3;
+    height: 52vh;
+    min-height: 0;
+    margin: 0;
+  }
+  #tapArea:has(.photo-wrap) > .person-name { grid-column: 2; align-self: end; }
+  #tapArea:has(.photo-wrap) > .person-desc { grid-column: 2; }
+  #tapArea:has(.photo-wrap) > .prompt { grid-column: 2; align-self: start; margin-top: 4px; }
 }
