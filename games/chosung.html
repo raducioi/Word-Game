@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>초성 퀴즈 🔠</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="game">
+  <a class="back" href="../index.html">← 메인</a>
+  <h1>초성 퀴즈 🔠</h1>
+  <p class="subtitle">초성만 보고 속담·영화·드라마 제목을 맞혀보세요!<br/>화면을 누르면 정답이 공개돼요.</p>
+
+  <div class="hud">
+    <div class="stat"><span class="label">문제</span><span class="value" id="count">0</span></div>
+    <button class="btn-quit" id="quitBtn">종료</button>
+  </div>
+
+  <div style="text-align:center"><span class="category-badge" id="catBadge"></span></div>
+
+  <div class="tap-area" id="tapArea">
+    <div class="chosung-display" id="chosung"></div>
+    <div class="answer-text" id="answer"></div>
+    <div class="prompt" id="prompt"></div>
+  </div>
+
+  <p class="footer-note">진행자용 도우미 화면 · 종료를 누를 때까지 계속됩니다</p>
+
+  <div class="overlay" id="startScreen">
+    <h2>🔠 초성 퀴즈</h2>
+    <div class="rules">
+      • 한글 문장의 <b>초성</b>만 보여줘요. (예: ㄱㅅㅊ → 기생충)<br />
+      • 속담, 영화·드라마 제목 등이 문제로 나와요.<br />
+      • 참가자들이 정답을 <b>소리내어</b> 맞혀요.<br />
+      • <b>화면을 터치</b>하면 정답이 공개돼요.<br />
+      • <b>다시 터치</b>하면 다음 문제로. <b>타이머는 없어요!</b>
+    </div>
+    <button class="btn-primary" id="startBtn">시작하기 ▶</button>
+  </div>
+
+  <div class="overlay hidden" id="endScreen">
+    <h2>수고하셨어요! 🎉</h2>
+    <p>진행한 문제</p>
+    <div class="big-score" id="finalCount">0</div>
+    <button class="btn-primary" id="restartBtn">다시 시작 ↻</button>
+  </div>
+</div>
+
+<script src="../sound.js"></script>
+<script>
+  // ===== 문제 데이터 (정답 + 분류) =====
+  const QUIZ = [
+    // 속담
+    { a: "가는 말이 고와야 오는 말이 곱다", c: "속담" },
+    { a: "발 없는 말이 천리 간다", c: "속담" },
+    { a: "백지장도 맞들면 낫다", c: "속담" },
+    { a: "고래 싸움에 새우 등 터진다", c: "속담" },
+    { a: "원숭이도 나무에서 떨어진다", c: "속담" },
+    { a: "등잔 밑이 어둡다", c: "속담" },
+    { a: "소 잃고 외양간 고친다", c: "속담" },
+    { a: "낮말은 새가 듣고 밤말은 쥐가 듣는다", c: "속담" },
+    { a: "티끌 모아 태산", c: "속담" },
+    { a: "우물 안 개구리", c: "속담" },
+    { a: "남의 떡이 더 커 보인다", c: "속담" },
+    { a: "가재는 게 편", c: "속담" },
+    // 영화
+    { a: "기생충", c: "영화" },
+    { a: "극한직업", c: "영화" },
+    { a: "택시운전사", c: "영화" },
+    { a: "신과함께", c: "영화" },
+    { a: "베테랑", c: "영화" },
+    { a: "부산행", c: "영화" },
+    { a: "올드보이", c: "영화" },
+    { a: "암살", c: "영화" },
+    { a: "범죄도시", c: "영화" },
+    { a: "왕의 남자", c: "영화" },
+    // 드라마
+    { a: "오징어 게임", c: "드라마" },
+    { a: "이상한 변호사 우영우", c: "드라마" },
+    { a: "도깨비", c: "드라마" },
+    { a: "태양의 후예", c: "드라마" },
+    { a: "사랑의 불시착", c: "드라마" },
+    { a: "응답하라 1988", c: "드라마" },
+    { a: "슬기로운 의사생활", c: "드라마" },
+    { a: "스카이 캐슬", c: "드라마" },
+    { a: "별에서 온 그대", c: "드라마" },
+    { a: "미스터 션샤인", c: "드라마" },
+  ];
+
+  // ===== 초성 추출 =====
+  const CHO = ["ㄱ","ㄲ","ㄴ","ㄷ","ㄸ","ㄹ","ㅁ","ㅂ","ㅃ","ㅅ","ㅆ","ㅇ","ㅈ","ㅉ","ㅊ","ㅋ","ㅌ","ㅍ","ㅎ"];
+  function toChosung(str) {
+    let out = "";
+    for (const ch of str) {
+      const code = ch.charCodeAt(0);
+      if (code >= 0xAC00 && code <= 0xD7A3) {
+        out += CHO[Math.floor((code - 0xAC00) / 588)];
+      } else {
+        out += ch; // 공백·숫자·영문·기호는 그대로
+      }
+    }
+    return out;
+  }
+
+  let phase = "idle"; // "quiz" | "revealed"
+  let current = null, count = 0, queue = [];
+
+  const $ = (id) => document.getElementById(id);
+  const chosungEl = $("chosung"), answerEl = $("answer"), promptEl = $("prompt"), catEl = $("catBadge");
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function startGame() {
+    initAudio();
+    count = 0;
+    queue = shuffle(QUIZ);
+    $("startScreen").classList.add("hidden");
+    $("endScreen").classList.add("hidden");
+    nextRound();
+  }
+
+  function nextRound() {
+    phase = "quiz";
+    if (queue.length === 0) queue = shuffle(QUIZ);
+    current = queue.pop();
+    count += 1;
+    $("count").textContent = count;
+    catEl.textContent = current.c;
+    chosungEl.textContent = toChosung(current.a);
+    answerEl.textContent = "";
+    promptEl.textContent = "정답을 맞혀보세요! 🤔";
+    promptEl.className = "prompt";
+  }
+
+  function revealAnswer() {
+    phase = "revealed";
+    playFanfare();
+    answerEl.textContent = current.a;
+    promptEl.textContent = "화면을 눌러 다음 문제 👉";
+    promptEl.className = "prompt pulse";
+  }
+
+  function handleTap() {
+    if (phase === "quiz") revealAnswer();
+    else if (phase === "revealed") nextRound();
+  }
+
+  function endGame() {
+    phase = "idle";
+    $("finalCount").textContent = count;
+    $("endScreen").classList.remove("hidden");
+  }
+
+  $("startBtn").addEventListener("click", startGame);
+  $("restartBtn").addEventListener("click", startGame);
+  $("quitBtn").addEventListener("click", (e) => { e.stopPropagation(); endGame(); });
+  $("tapArea").addEventListener("click", handleTap);
+  document.addEventListener("keydown", (e) => {
+    if (phase === "idle") return;
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); handleTap(); }
+  });
+</script>
+</body>
+</html>

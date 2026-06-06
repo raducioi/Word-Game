@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>인물 퀴즈 👤</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="game">
+  <a class="back" href="../index.html">← 메인</a>
+  <h1>인물 퀴즈 👤</h1>
+  <p class="subtitle">사진을 보고 누구인지 3초 안에 맞혀보세요!<br/>카운트다운 후 화면을 누르면 정답이 공개돼요.</p>
+
+  <div class="hud">
+    <div class="stat"><span class="label">문제</span><span class="value" id="count">0</span></div>
+    <button class="btn-quit" id="quitBtn">종료</button>
+  </div>
+
+  <div class="timer-wrap"><div class="timer-bar" id="timerBar"></div></div>
+  <div class="countdown" id="countdown"></div>
+
+  <div class="tap-area" id="tapArea">
+    <div class="photo-wrap" id="photo"></div>
+    <div class="person-name" id="name"></div>
+    <div class="person-desc" id="desc"></div>
+    <div class="prompt" id="prompt"></div>
+  </div>
+
+  <p class="footer-note">사진 출처: 위키백과 · 진행자용 도우미 화면</p>
+
+  <div class="overlay" id="startScreen">
+    <h2>👤 인물 퀴즈</h2>
+    <div class="rules">
+      • <b>인물 사진</b>과 <b>카운트다운(3초)</b>을 보여줘요.<br />
+      • 참가자들이 누구인지 <b>소리내어</b> 맞혀요.<br />
+      • <b>화면을 터치</b>하면 정답(이름)이 공개돼요.<br />
+      • <b>다시 터치</b>하면 다음 문제로 넘어가요.<br />
+      • 사진은 위키백과에서 불러와요. <b>인터넷 연결</b>이 필요해요!
+    </div>
+    <button class="btn-primary" id="startBtn">시작하기 ▶</button>
+  </div>
+
+  <div class="overlay hidden" id="endScreen">
+    <h2>수고하셨어요! 🎉</h2>
+    <p>진행한 문제</p>
+    <div class="big-score" id="finalCount">0</div>
+    <button class="btn-primary" id="restartBtn">다시 시작 ↻</button>
+  </div>
+</div>
+
+<script src="../sound.js"></script>
+<script>
+  // ===== 인물 데이터 =====
+  // name: 정답 이름 / wiki: 한국어 위키백과 문서 제목 (사진을 여기서 불러옴)
+  // img: 직접 지정하고 싶을 때 사진 URL을 넣으면 위키 호출 대신 그 사진을 사용
+  const PEOPLE = [
+    { name: "손흥민", wiki: "손흥민" },
+    { name: "김연아", wiki: "김연아" },
+    { name: "박지성", wiki: "박지성" },
+    { name: "류현진", wiki: "류현진" },
+    { name: "봉준호", wiki: "봉준호" },
+    { name: "백종원", wiki: "백종원" },
+    { name: "유재석", wiki: "유재석" },
+    { name: "강호동", wiki: "강호동" },
+    { name: "아이유", wiki: "아이유" },
+    { name: "임영웅", wiki: "임영웅" },
+    { name: "싸이", wiki: "싸이" },
+    { name: "방탄소년단", wiki: "방탄소년단" },
+    { name: "블랙핑크", wiki: "블랙핑크" },
+    { name: "이순신", wiki: "이순신" },
+    { name: "안중근", wiki: "안중근" },
+    { name: "유관순", wiki: "유관순" },
+  ];
+
+  const TIME_LIMIT = 3;
+  let phase = "idle"; // "loading" | "counting" | "revealed"
+  let current = null, count = 0, queue = [], countdownId = null, failStreak = 0;
+
+  const $ = (id) => document.getElementById(id);
+  const photoEl = $("photo"), nameEl = $("name"), descEl = $("desc");
+  const promptEl = $("prompt"), countdownEl = $("countdown"), timerBar = $("timerBar");
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function startGame() {
+    initAudio();
+    count = 0; failStreak = 0;
+    queue = shuffle(PEOPLE);
+    $("startScreen").classList.add("hidden");
+    $("endScreen").classList.add("hidden");
+    nextRound();
+  }
+
+  function nextRound() {
+    phase = "loading";
+    if (queue.length === 0) queue = shuffle(PEOPLE);
+    current = queue.pop();
+    photoEl.innerHTML = '<div class="spinner"></div>';
+    nameEl.textContent = "";
+    descEl.textContent = "";
+    countdownEl.className = "countdown";
+    countdownEl.textContent = "";
+    promptEl.textContent = "사진 불러오는 중…";
+    promptEl.className = "prompt";
+    timerBar.classList.remove("running", "warn");
+    loadPhoto(current);
+  }
+
+  async function loadPhoto(person) {
+    let url = person.img || "";
+    let desc = person.desc || "";
+    if (!url) {
+      try {
+        const res = await fetch("https://ko.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(person.wiki));
+        if (res.ok) {
+          const data = await res.json();
+          url = (data.originalimage && data.originalimage.source) ||
+                (data.thumbnail && data.thumbnail.source) || "";
+          if (!desc) desc = data.description || "";
+        }
+      } catch (e) { url = ""; }
+    }
+    if (current !== person) return;        // 그 사이 다음 문제로 넘어갔으면 무시
+    if (!url) { handleLoadFail(person); return; }
+
+    person._desc = desc;
+    const img = new Image();
+    img.alt = "인물 사진";
+    img.onload = () => {
+      if (current !== person) return;
+      photoEl.innerHTML = "";
+      photoEl.appendChild(img);
+      failStreak = 0;
+      startCountdown();
+    };
+    img.onerror = () => { if (current === person) handleLoadFail(person); };
+    img.src = url;
+  }
+
+  function handleLoadFail(person) {
+    failStreak += 1;
+    if (failStreak > 5) {
+      photoEl.innerHTML = '<div class="photo-loading">😢</div>';
+      promptEl.textContent = "사진을 불러올 수 없어요. 인터넷 연결을 확인해 주세요.";
+      promptEl.className = "prompt";
+      phase = "idle";
+      return;
+    }
+    nextRound(); // 사진 없는 인물은 건너뛰고 다음으로
+  }
+
+  function startCountdown() {
+    phase = "counting";
+    count += 1;
+    $("count").textContent = count;
+    let remaining = TIME_LIMIT;
+    countdownEl.className = "countdown";
+    countdownEl.textContent = remaining;
+    promptEl.textContent = "누구일까요? 🤔";
+    promptEl.className = "prompt";
+    playTick();
+    timerBar.classList.remove("running", "warn");
+    timerBar.style.setProperty("--time", TIME_LIMIT + "s");
+    void timerBar.offsetWidth;
+    timerBar.classList.add("running");
+    countdownId = setInterval(() => {
+      remaining -= 1;
+      if (remaining > 0) {
+        countdownEl.textContent = remaining;
+        playTick();
+        if (remaining <= 1) timerBar.classList.add("warn");
+      } else {
+        clearInterval(countdownId);
+        timerBar.classList.remove("running");
+        countdownEl.classList.add("done");
+        countdownEl.textContent = "⏰";
+        promptEl.textContent = "화면을 눌러 정답 확인 👆";
+        promptEl.className = "prompt pulse";
+      }
+    }, 1000);
+  }
+
+  function revealAnswer() {
+    phase = "revealed";
+    clearInterval(countdownId);
+    playFanfare();
+    timerBar.classList.remove("running", "warn");
+    countdownEl.className = "countdown reveal";
+    countdownEl.textContent = "✅";
+    nameEl.textContent = current.name;
+    descEl.textContent = current._desc || "";
+    promptEl.textContent = "화면을 눌러 다음 문제 👉";
+    promptEl.className = "prompt pulse";
+  }
+
+  function handleTap() {
+    if (phase === "counting") revealAnswer();
+    else if (phase === "revealed") nextRound();
+  }
+
+  function endGame() {
+    clearInterval(countdownId);
+    phase = "idle";
+    timerBar.classList.remove("running", "warn");
+    $("finalCount").textContent = count;
+    $("endScreen").classList.remove("hidden");
+  }
+
+  $("startBtn").addEventListener("click", startGame);
+  $("restartBtn").addEventListener("click", startGame);
+  $("quitBtn").addEventListener("click", (e) => { e.stopPropagation(); endGame(); });
+  $("tapArea").addEventListener("click", handleTap);
+  document.addEventListener("keydown", (e) => {
+    if (phase === "idle" || phase === "loading") return;
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); handleTap(); }
+  });
+</script>
+</body>
+</html>
