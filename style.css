@@ -239,6 +239,32 @@ button:active { transform: scale(.96); }
 .home-card .arrow { color: var(--muted); font-size: 1.4rem; }
 
 /* ===== 초성 퀴즈 ===== */
+.hidden { display: none !important; }
+.hint-row { text-align: center; min-height: 2.4em; margin-bottom: 2px; }
+.btn-hint {
+  background: rgba(255,209,102,.15);
+  color: var(--accent);
+  border: 1px solid rgba(255,209,102,.45);
+  padding: 8px 18px;
+  font-size: .85rem;
+}
+.btn-hint:hover { filter: brightness(1.1); }
+.genre-title { color: var(--muted); font-size: .82rem; font-weight: 700; }
+.genre-select { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.genre-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.14);
+  padding: 8px 14px;
+  border-radius: 99px;
+  font-size: .9rem;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+}
+.genre-chip input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; margin: 0; }
 .category-badge {
   display: inline-block;
   background: rgba(255,209,102,.15);
