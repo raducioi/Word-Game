@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>4글자 이어말하기 ⏱️</title>
+<style>
+  :root {
+    --bg: #0f1226;
+    --bg2: #1a1f3c;
+    --card: #232a52;
+    --accent: #ffd166;
+    --accent2: #06d6a0;
+    --danger: #ef476f;
+    --text: #f4f6ff;
+    --muted: #9aa3c7;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+    background: radial-gradient(circle at 50% 0%, var(--bg2), var(--bg) 70%);
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .game {
+    width: 100%;
+    max-width: 480px;
+    background: var(--card);
+    border-radius: 24px;
+    padding: 28px 24px 32px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.45);
+    position: relative;
+    overflow: hidden;
+  }
+  h1 {
+    font-size: 1.45rem;
+    text-align: center;
+    margin-bottom: 4px;
+    letter-spacing: -.5px;
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--muted);
+    font-size: .85rem;
+    margin-bottom: 20px;
+  }
+
+  /* 상단 상태바 */
+  .hud {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 18px;
+    font-size: .95rem;
+  }
+  .hud .stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .hud .stat .label { color: var(--muted); font-size: .7rem; }
+  .hud .stat .value { font-weight: 700; font-size: 1.1rem; }
+  .lives { letter-spacing: 2px; font-size: 1.1rem; }
+
+  /* 타이머 바 */
+  .timer-wrap {
+    height: 10px;
+    background: rgba(255,255,255,.08);
+    border-radius: 99px;
+    overflow: hidden;
+    margin-bottom: 22px;
+  }
+  .timer-bar {
+    height: 100%;
+    width: 100%;
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+    border-radius: 99px;
+  }
+  .timer-bar.running {
+    animation: drain var(--time, 3s) linear forwards;
+  }
+  @keyframes drain { from { width: 100%; } to { width: 0%; } }
+  .timer-bar.warn { background: linear-gradient(90deg, var(--danger), var(--accent)); }
+
+  /* 문제 영역 */
+  .puzzle {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 14px 0 6px;
+  }
+  .tile {
+    width: 64px;
+    height: 72px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    font-weight: 800;
+  }
+  .tile.shown {
+    background: linear-gradient(160deg, #2f3a73, #283063);
+    color: var(--text);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+  }
+  .tile.blank {
+    background: rgba(255,255,255,.05);
+    color: var(--accent);
+    border: 2px dashed rgba(255,209,102,.5);
+  }
+  .tile.reveal { background: var(--accent2); color: #06301f; border: none; }
+  .tile.wrong { background: var(--danger); color: #fff; border: none; }
+
+  .hint {
+    text-align: center;
+    color: var(--muted);
+    font-size: .9rem;
+    min-height: 1.2em;
+    margin: 10px 0 18px;
+  }
+
+  /* 입력 */
+  .input-row { display: flex; gap: 8px; }
+  #answer {
+    flex: 1;
+    padding: 14px 16px;
+    font-size: 1.2rem;
+    border-radius: 12px;
+    border: 2px solid transparent;
+    background: rgba(255,255,255,.07);
+    color: var(--text);
+    outline: none;
+    text-align: center;
+    letter-spacing: 6px;
+  }
+  #answer:focus { border-color: var(--accent); }
+  #answer::placeholder { color: var(--muted); letter-spacing: normal; }
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    border-radius: 12px;
+    font-weight: 700;
+    transition: transform .08s ease, filter .15s ease;
+  }
+  button:active { transform: scale(.96); }
+  .btn-primary {
+    padding: 14px 20px;
+    background: var(--accent);
+    color: #2a2300;
+    font-size: 1rem;
+  }
+  .btn-primary:hover { filter: brightness(1.05); }
+
+  /* 토스트 메시지 */
+  .toast {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-80px);
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,.12);
+    padding: 8px 18px;
+    border-radius: 99px;
+    font-weight: 700;
+    font-size: .95rem;
+    opacity: 0;
+    transition: all .3s ease;
+    pointer-events: none;
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  .toast.good { color: var(--accent2); }
+  .toast.bad { color: var(--danger); }
+
+  /* 시작 / 종료 오버레이 */
+  .overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(15,18,38,.92);
+    backdrop-filter: blur(4px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 18px;
+    text-align: center;
+    padding: 30px;
+    z-index: 5;
+  }
+  .overlay.hidden { display: none; }
+  .overlay h2 { font-size: 1.8rem; }
+  .overlay p { color: var(--muted); line-height: 1.6; }
+  .overlay .big-score { font-size: 3rem; font-weight: 800; color: var(--accent); }
+  .rules {
+    text-align: left;
+    background: rgba(255,255,255,.05);
+    padding: 14px 18px;
+    border-radius: 12px;
+    font-size: .9rem;
+    color: var(--text);
+    line-height: 1.7;
+  }
+  .rules b { color: var(--accent); }
+  .footer-note { text-align:center; color: var(--muted); font-size:.72rem; margin-top:16px; }
+</style>
+</head>
+<body>
+<div class="game">
+  <h1>4글자 이어말하기 ⏱️</h1>
+  <p class="subtitle">앞 두 글자를 보고, 남은 두 글자를 3초 안에!</p>
+
+  <div class="hud">
+    <div class="stat"><span class="label">점수</span><span class="value" id="score">0</span></div>
+    <div class="stat"><span class="label">콤보</span><span class="value" id="combo">0</span></div>
+    <div class="stat"><span class="label">목숨</span><span class="value lives" id="lives">❤️❤️❤️</span></div>
+  </div>
+
+  <div class="timer-wrap"><div class="timer-bar" id="timerBar"></div></div>
+
+  <div class="puzzle" id="puzzle"></div>
+  <div class="hint" id="hint"></div>
+
+  <div class="input-row">
+    <input id="answer" maxlength="2" placeholder="남은 두 글자" autocomplete="off" inputmode="text" />
+    <button class="btn-primary" id="submitBtn">확인</button>
+  </div>
+
+  <p class="footer-note">정답은 잘 알려진 사자성어예요. 힌트(뜻)를 참고하세요!</p>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- 시작 화면 -->
+  <div class="overlay" id="startScreen">
+    <h2>🀄 4글자 이어말하기</h2>
+    <div class="rules">
+      • 4글자 사자성어 중 <b>앞 2글자</b>만 보여줘요.<br />
+      • <b>3초</b> 안에 남은 2글자를 입력하세요.<br />
+      • 맞히면 점수 +10, <b>콤보</b>가 쌓이면 보너스!<br />
+      • 틀리거나 시간 초과 시 <b>목숨</b>이 줄어요. (3개)
+    </div>
+    <button class="btn-primary" id="startBtn">시작하기 ▶</button>
+  </div>
+
+  <!-- 종료 화면 -->
+  <div class="overlay hidden" id="endScreen">
+    <h2>게임 종료!</h2>
+    <p>최종 점수</p>
+    <div class="big-score" id="finalScore">0</div>
+    <p id="endMsg"></p>
+    <button class="btn-primary" id="restartBtn">다시 하기 ↻</button>
+  </div>
+</div>
+
+<script>
+  // ===== 단어 데이터 (4글자 사자성어 + 뜻) =====
+  const WORDS = [
+    { w: "유비무환", h: "미리 준비가 되어 있으면 근심이 없음" },
+    { w: "동고동락", h: "괴로움도 즐거움도 함께함" },
+    { w: "일석이조", h: "한 가지 일로 두 가지 이득" },
+    { w: "고진감래", h: "고생 끝에 즐거움이 옴" },
+    { w: "작심삼일", h: "결심이 사흘을 못 감" },
+    { w: "십중팔구", h: "열 중 여덟아홉, 거의 대부분" },
+    { w: "안하무인", h: "눈 아래에 사람이 없듯 교만함" },
+    { w: "어부지리", h: "둘이 다투는 사이 제삼자가 이득" },
+    { w: "유유상종", h: "비슷한 것끼리 서로 어울림" },
+    { w: "자업자득", h: "자기가 한 일의 결과를 자기가 받음" },
+    { w: "조삼모사", h: "잔꾀로 남을 속임" },
+    { w: "타산지석", h: "남의 잘못도 나의 교훈이 됨" },
+    { w: "결초보은", h: "죽어서도 은혜를 갚음" },
+    { w: "과유불급", h: "지나침은 미치지 못함과 같음" },
+    { w: "금시초문", h: "이제야 처음 들음" },
+    { w: "다다익선", h: "많으면 많을수록 좋음" },
+    { w: "대기만성", h: "큰 그릇은 늦게 이루어짐" },
+    { w: "동문서답", h: "물음과 전혀 상관없는 엉뚱한 대답" },
+    { w: "마이동풍", h: "남의 말을 귀담아듣지 않음" },
+    { w: "백전백승", h: "싸울 때마다 모두 이김" },
+    { w: "사면초가", h: "사방이 적으로 둘러싸인 곤경" },
+    { w: "설상가상", h: "어려운 일이 겹쳐 일어남" },
+    { w: "오리무중", h: "갈피를 잡을 수 없음" },
+    { w: "우유부단", h: "결단을 내리지 못하고 망설임" },
+    { w: "이심전심", h: "마음과 마음으로 서로 통함" },
+    { w: "인과응보", h: "원인에 따라 결과가 따름" },
+    { w: "일사천리", h: "일이 거침없이 빠르게 진행됨" },
+    { w: "전화위복", h: "화가 바뀌어 복이 됨" },
+    { w: "주마간산", h: "대충 훑어봄" },
+    { w: "천고마비", h: "하늘은 높고 말은 살찌는 가을" },
+    { w: "청출어람", h: "제자가 스승보다 나음" },
+    { w: "탁상공론", h: "현실성 없는 헛된 논의" },
+    { w: "표리부동", h: "겉과 속이 다름" },
+    { w: "팔방미인", h: "여러 방면에 능통한 사람" },
+    { w: "함흥차사", h: "심부름 간 사람이 소식이 없음" },
+    { w: "형설지공", h: "고생하며 부지런히 공부함" },
+    { w: "호시탐탐", h: "기회를 노리며 형세를 살핌" },
+    { w: "화룡점정", h: "가장 중요한 부분을 마무리함" },
+    { w: "감언이설", h: "남의 비위를 맞추는 달콤한 말" },
+    { w: "권선징악", h: "선을 권하고 악을 벌함" },
+    { w: "기상천외", h: "착상이 보통을 뛰어넘어 기발함" },
+    { w: "노심초사", h: "몹시 마음을 쓰며 애를 태움" },
+    { w: "박장대소", h: "손뼉을 치며 크게 웃음" },
+    { w: "산전수전", h: "온갖 어려움을 다 겪음" },
+    { w: "속수무책", h: "어찌할 도리 없이 손을 묶음" },
+    { w: "시시각각", h: "시간이 흐름에 따라 그때그때" },
+    { w: "우왕좌왕", h: "이리저리 헤매며 갈팡질팡함" },
+    { w: "일취월장", h: "나날이 발전함" },
+    { w: "임기응변", h: "상황에 맞춰 그때그때 처리함" },
+  ];
+
+  // ===== 상태 =====
+  const TIME_LIMIT = 3; // 초
+  let score = 0, combo = 0, lives = 3;
+  let current = null;
+  let timeoutId = null;
+  let queue = [];
+
+  // ===== DOM =====
+  const $ = (id) => document.getElementById(id);
+  const puzzleEl = $("puzzle");
+  const hintEl = $("hint");
+  const answerEl = $("answer");
+  const timerBar = $("timerBar");
+  const toastEl = $("toast");
+
+  // ===== 유틸 =====
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function toast(msg, type) {
+    toastEl.textContent = msg;
+    toastEl.className = "toast show " + (type || "");
+    setTimeout(() => { toastEl.className = "toast " + (type || ""); }, 900);
+  }
+
+  function updateHud() {
+    $("score").textContent = score;
+    $("combo").textContent = combo;
+    $("lives").textContent = "❤️".repeat(lives) + "🤍".repeat(Math.max(0, 3 - lives)) || "💀";
+  }
+
+  // ===== 게임 흐름 =====
+  function startGame() {
+    score = 0; combo = 0; lives = 3;
+    queue = shuffle(WORDS);
+    updateHud();
+    $("startScreen").classList.add("hidden");
+    $("endScreen").classList.add("hidden");
+    nextRound();
+  }
+
+  function nextRound() {
+    if (queue.length === 0) queue = shuffle(WORDS); // 다 풀면 다시 섞어서 무한
+    current = queue.pop();
+    renderPuzzle(current.w, false);
+    hintEl.textContent = "💡 " + current.h;
+    answerEl.value = "";
+    answerEl.disabled = false;
+    answerEl.focus();
+    startTimer();
+  }
+
+  function renderPuzzle(word, revealed, wrong) {
+    puzzleEl.innerHTML = "";
+    [...word].forEach((ch, i) => {
+      const div = document.createElement("div");
+      div.className = "tile";
+      if (i < 2) {
+        div.classList.add("shown");
+        div.textContent = ch;
+      } else if (revealed) {
+        div.classList.add(wrong ? "wrong" : "reveal");
+        div.textContent = ch;
+      } else {
+        div.classList.add("blank");
+        div.textContent = "?";
+      }
+      puzzleEl.appendChild(div); // ★ 이 줄을 빼면 타일이 안 보임 (과거 버그)
+    });
+  }
+
+  function startTimer() {
+    clearTimeout(timeoutId);
+    // 타이머 바 리셋 후 애니메이션 재시작
+    timerBar.classList.remove("running", "warn");
+    timerBar.style.setProperty("--time", TIME_LIMIT + "s");
+    void timerBar.offsetWidth; // reflow로 애니메이션 리셋
+    timerBar.classList.add("running");
+    setTimeout(() => timerBar.classList.add("warn"), TIME_LIMIT * 1000 * 0.6);
+    timeoutId = setTimeout(() => handleResult(false, true), TIME_LIMIT * 1000);
+  }
+
+  function submit() {
+    if (answerEl.disabled) return;
+    const guess = answerEl.value.trim();
+    if (guess.length < 2) { toast("두 글자를 입력하세요", "bad"); return; }
+    const correctTail = current.w.slice(2);
+    handleResult(guess === correctTail, false);
+  }
+
+  function handleResult(correct, timedOut) {
+    clearTimeout(timeoutId);
+    timerBar.classList.remove("running", "warn");
+    answerEl.disabled = true;
+
+    if (correct) {
+      combo += 1;
+      const bonus = combo >= 2 ? combo * 2 : 0;
+      score += 10 + bonus;
+      renderPuzzle(current.w, true, false);
+      toast(bonus ? `정답! +${10 + bonus} (콤보${combo})` : "정답! +10", "good");
+    } else {
+      combo = 0;
+      lives -= 1;
+      renderPuzzle(current.w, true, true);
+      toast(timedOut ? "⏰ 시간 초과!" : "❌ 오답!", "bad");
+    }
+    updateHud();
+
+    setTimeout(() => {
+      if (lives <= 0) endGame();
+      else nextRound();
+    }, 1100);
+  }
+
+  function endGame() {
+    $("finalScore").textContent = score;
+    $("endMsg").textContent =
+      score >= 200 ? "🏆 사자성어 마스터!" :
+      score >= 100 ? "👍 훌륭해요!" :
+      score >= 50  ? "🙂 좋아요, 다시 도전!" :
+                     "💪 연습이 필요해요!";
+    $("endScreen").classList.remove("hidden");
+  }
+
+  // ===== 이벤트 =====
+  $("startBtn").addEventListener("click", startGame);
+  $("restartBtn").addEventListener("click", startGame);
+  $("submitBtn").addEventListener("click", submit);
+  answerEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") submit();
+  });
+
+  updateHud();
+</script>
+</body>
+</html>
