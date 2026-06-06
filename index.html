@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
 <title>4글자 이어말하기 ⏱️</title>
 <style>
   :root {
@@ -15,7 +15,7 @@
     --text: #f4f6ff;
     --muted: #9aa3c7;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   html, body { height: 100%; }
   body {
     font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
@@ -32,13 +32,13 @@
     max-width: 480px;
     background: var(--card);
     border-radius: 24px;
-    padding: 28px 24px 32px;
+    padding: 24px 24px 28px;
     box-shadow: 0 20px 60px rgba(0,0,0,.45);
     position: relative;
     overflow: hidden;
   }
   h1 {
-    font-size: 1.45rem;
+    font-size: 1.35rem;
     text-align: center;
     margin-bottom: 4px;
     letter-spacing: -.5px;
@@ -46,8 +46,9 @@
   .subtitle {
     text-align: center;
     color: var(--muted);
-    font-size: .85rem;
-    margin-bottom: 20px;
+    font-size: .82rem;
+    margin-bottom: 16px;
+    line-height: 1.5;
   }
 
   /* 상단 상태바 */
@@ -55,13 +56,20 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 18px;
+    margin-bottom: 14px;
     font-size: .95rem;
   }
-  .hud .stat { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .hud .stat { display: flex; flex-direction: column; gap: 2px; }
   .hud .stat .label { color: var(--muted); font-size: .7rem; }
   .hud .stat .value { font-weight: 700; font-size: 1.1rem; }
-  .lives { letter-spacing: 2px; font-size: 1.1rem; }
+  .btn-quit {
+    padding: 8px 16px;
+    background: rgba(239,71,111,.15);
+    color: var(--danger);
+    font-size: .85rem;
+    border: 1px solid rgba(239,71,111,.4);
+  }
+  .btn-quit:hover { filter: brightness(1.1); }
 
   /* 타이머 바 */
   .timer-wrap {
@@ -69,7 +77,7 @@
     background: rgba(255,255,255,.08);
     border-radius: 99px;
     overflow: hidden;
-    margin-bottom: 22px;
+    margin-bottom: 8px;
   }
   .timer-bar {
     height: 100%;
@@ -83,21 +91,45 @@
   @keyframes drain { from { width: 100%; } to { width: 0%; } }
   .timer-bar.warn { background: linear-gradient(90deg, var(--danger), var(--accent)); }
 
+  /* 큰 카운트다운 숫자 */
+  .countdown {
+    text-align: center;
+    font-size: 2.4rem;
+    font-weight: 800;
+    height: 1.3em;
+    line-height: 1.3em;
+    color: var(--accent);
+    transition: color .2s ease;
+  }
+  .countdown.done { color: var(--danger); }
+  .countdown.reveal { color: var(--accent2); }
+
+  /* 터치 영역 (문제 + 정답 표시) */
+  .tap-area {
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    border-radius: 16px;
+    padding: 4px 0 10px;
+    transition: background .15s ease;
+  }
+  .tap-area:active { background: rgba(255,255,255,.03); }
+
   /* 문제 영역 */
   .puzzle {
     display: flex;
     justify-content: center;
     gap: 10px;
-    margin: 14px 0 6px;
+    margin: 10px 0 6px;
   }
   .tile {
     width: 64px;
-    height: 72px;
+    height: 76px;
     border-radius: 14px;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 2.2rem;
+    font-size: 2.3rem;
     font-weight: 800;
   }
   .tile.shown {
@@ -111,32 +143,27 @@
     border: 2px dashed rgba(255,209,102,.5);
   }
   .tile.reveal { background: var(--accent2); color: #06301f; border: none; }
-  .tile.wrong { background: var(--danger); color: #fff; border: none; }
 
   .hint {
     text-align: center;
     color: var(--muted);
-    font-size: .9rem;
+    font-size: .92rem;
     min-height: 1.2em;
-    margin: 10px 0 18px;
+    margin: 12px 0 6px;
+    padding: 0 8px;
   }
 
-  /* 입력 */
-  .input-row { display: flex; gap: 8px; }
-  #answer {
-    flex: 1;
-    padding: 14px 16px;
-    font-size: 1.2rem;
-    border-radius: 12px;
-    border: 2px solid transparent;
-    background: rgba(255,255,255,.07);
-    color: var(--text);
-    outline: none;
+  .prompt {
     text-align: center;
-    letter-spacing: 6px;
+    color: var(--text);
+    font-size: .95rem;
+    font-weight: 700;
+    min-height: 1.4em;
+    margin-top: 8px;
   }
-  #answer:focus { border-color: var(--accent); }
-  #answer::placeholder { color: var(--muted); letter-spacing: normal; }
+  .prompt.pulse { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
+
   button {
     font-family: inherit;
     cursor: pointer;
@@ -147,38 +174,20 @@
   }
   button:active { transform: scale(.96); }
   .btn-primary {
-    padding: 14px 20px;
+    padding: 14px 24px;
     background: var(--accent);
     color: #2a2300;
     font-size: 1rem;
   }
   .btn-primary:hover { filter: brightness(1.05); }
 
-  /* 토스트 메시지 */
-  .toast {
-    position: absolute;
-    top: 14px;
-    left: 50%;
-    transform: translateX(-50%) translateY(-80px);
-    background: var(--card);
-    border: 1px solid rgba(255,255,255,.12);
-    padding: 8px 18px;
-    border-radius: 99px;
-    font-weight: 700;
-    font-size: .95rem;
-    opacity: 0;
-    transition: all .3s ease;
-    pointer-events: none;
-  }
-  .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-  .toast.good { color: var(--accent2); }
-  .toast.bad { color: var(--danger); }
+  .footer-note { text-align:center; color: var(--muted); font-size:.72rem; margin-top:16px; }
 
   /* 시작 / 종료 오버레이 */
   .overlay {
     position: absolute;
     inset: 0;
-    background: rgba(15,18,38,.92);
+    background: rgba(15,18,38,.94);
     backdrop-filter: blur(4px);
     display: flex;
     flex-direction: column;
@@ -203,53 +212,48 @@
     line-height: 1.7;
   }
   .rules b { color: var(--accent); }
-  .footer-note { text-align:center; color: var(--muted); font-size:.72rem; margin-top:16px; }
 </style>
 </head>
 <body>
 <div class="game">
   <h1>4글자 이어말하기 ⏱️</h1>
-  <p class="subtitle">앞 두 글자를 보고, 남은 두 글자를 3초 안에!</p>
+  <p class="subtitle">앞 두 글자를 보고 정답을 외쳐보세요!<br/>카운트다운 후 화면을 누르면 정답이 공개돼요.</p>
 
   <div class="hud">
-    <div class="stat"><span class="label">점수</span><span class="value" id="score">0</span></div>
-    <div class="stat"><span class="label">콤보</span><span class="value" id="combo">0</span></div>
-    <div class="stat"><span class="label">목숨</span><span class="value lives" id="lives">❤️❤️❤️</span></div>
+    <div class="stat"><span class="label">문제</span><span class="value" id="count">0</span></div>
+    <button class="btn-quit" id="quitBtn">종료</button>
   </div>
 
   <div class="timer-wrap"><div class="timer-bar" id="timerBar"></div></div>
+  <div class="countdown" id="countdown"></div>
 
-  <div class="puzzle" id="puzzle"></div>
-  <div class="hint" id="hint"></div>
-
-  <div class="input-row">
-    <input id="answer" maxlength="2" placeholder="남은 두 글자" autocomplete="off" inputmode="text" />
-    <button class="btn-primary" id="submitBtn">확인</button>
+  <div class="tap-area" id="tapArea">
+    <div class="puzzle" id="puzzle"></div>
+    <div class="hint" id="hint"></div>
+    <div class="prompt" id="prompt"></div>
   </div>
 
-  <p class="footer-note">정답은 잘 알려진 사자성어예요. 힌트(뜻)를 참고하세요!</p>
-
-  <div class="toast" id="toast"></div>
+  <p class="footer-note">진행자용 도우미 화면 · 종료를 누를 때까지 계속됩니다</p>
 
   <!-- 시작 화면 -->
   <div class="overlay" id="startScreen">
     <h2>🀄 4글자 이어말하기</h2>
     <div class="rules">
-      • 4글자 사자성어 중 <b>앞 2글자</b>만 보여줘요.<br />
-      • <b>3초</b> 안에 남은 2글자를 입력하세요.<br />
-      • 맞히면 점수 +10, <b>콤보</b>가 쌓이면 보너스!<br />
-      • 틀리거나 시간 초과 시 <b>목숨</b>이 줄어요. (3개)
+      • 4글자 사자성어 중 <b>앞 2글자</b>와 <b>카운트다운(3초)</b>을 보여줘요.<br />
+      • 참가자들이 나머지 2글자를 <b>소리내어</b> 맞혀요.<br />
+      • <b>화면을 터치</b>하면 정답이 공개돼요.<br />
+      • <b>다시 터치</b>하면 다음 문제로 넘어가요.<br />
+      • <b>종료</b>를 누를 때까지 계속됩니다.
     </div>
     <button class="btn-primary" id="startBtn">시작하기 ▶</button>
   </div>
 
   <!-- 종료 화면 -->
   <div class="overlay hidden" id="endScreen">
-    <h2>게임 종료!</h2>
-    <p>최종 점수</p>
-    <div class="big-score" id="finalScore">0</div>
-    <p id="endMsg"></p>
-    <button class="btn-primary" id="restartBtn">다시 하기 ↻</button>
+    <h2>수고하셨어요! 🎉</h2>
+    <p>진행한 문제</p>
+    <div class="big-score" id="finalCount">0</div>
+    <button class="btn-primary" id="restartBtn">다시 시작 ↻</button>
   </div>
 </div>
 
@@ -309,18 +313,19 @@
 
   // ===== 상태 =====
   const TIME_LIMIT = 3; // 초
-  let score = 0, combo = 0, lives = 3;
+  let phase = "idle"; // "counting" | "revealed"
   let current = null;
-  let timeoutId = null;
+  let count = 0;
   let queue = [];
+  let countdownId = null;
 
   // ===== DOM =====
   const $ = (id) => document.getElementById(id);
   const puzzleEl = $("puzzle");
   const hintEl = $("hint");
-  const answerEl = $("answer");
+  const promptEl = $("prompt");
+  const countdownEl = $("countdown");
   const timerBar = $("timerBar");
-  const toastEl = $("toast");
 
   // ===== 유틸 =====
   function shuffle(arr) {
@@ -332,40 +337,27 @@
     return a;
   }
 
-  function toast(msg, type) {
-    toastEl.textContent = msg;
-    toastEl.className = "toast show " + (type || "");
-    setTimeout(() => { toastEl.className = "toast " + (type || ""); }, 900);
-  }
-
-  function updateHud() {
-    $("score").textContent = score;
-    $("combo").textContent = combo;
-    $("lives").textContent = "❤️".repeat(lives) + "🤍".repeat(Math.max(0, 3 - lives)) || "💀";
-  }
-
   // ===== 게임 흐름 =====
   function startGame() {
-    score = 0; combo = 0; lives = 3;
+    count = 0;
     queue = shuffle(WORDS);
-    updateHud();
     $("startScreen").classList.add("hidden");
     $("endScreen").classList.add("hidden");
     nextRound();
   }
 
   function nextRound() {
+    phase = "counting";
     if (queue.length === 0) queue = shuffle(WORDS); // 다 풀면 다시 섞어서 무한
     current = queue.pop();
+    count += 1;
+    $("count").textContent = count;
     renderPuzzle(current.w, false);
     hintEl.textContent = "💡 " + current.h;
-    answerEl.value = "";
-    answerEl.disabled = false;
-    answerEl.focus();
-    startTimer();
+    startCountdown();
   }
 
-  function renderPuzzle(word, revealed, wrong) {
+  function renderPuzzle(word, revealed) {
     puzzleEl.innerHTML = "";
     [...word].forEach((ch, i) => {
       const div = document.createElement("div");
@@ -374,7 +366,7 @@
         div.classList.add("shown");
         div.textContent = ch;
       } else if (revealed) {
-        div.classList.add(wrong ? "wrong" : "reveal");
+        div.classList.add("reveal");
         div.textContent = ch;
       } else {
         div.classList.add("blank");
@@ -384,69 +376,70 @@
     });
   }
 
-  function startTimer() {
-    clearTimeout(timeoutId);
+  function startCountdown() {
+    clearInterval(countdownId);
+    let remaining = TIME_LIMIT;
+    countdownEl.className = "countdown";
+    countdownEl.textContent = remaining;
+    promptEl.textContent = "정답을 외쳐보세요! 🗣️";
+    promptEl.className = "prompt";
+
     // 타이머 바 리셋 후 애니메이션 재시작
     timerBar.classList.remove("running", "warn");
     timerBar.style.setProperty("--time", TIME_LIMIT + "s");
     void timerBar.offsetWidth; // reflow로 애니메이션 리셋
     timerBar.classList.add("running");
-    setTimeout(() => timerBar.classList.add("warn"), TIME_LIMIT * 1000 * 0.6);
-    timeoutId = setTimeout(() => handleResult(false, true), TIME_LIMIT * 1000);
+
+    countdownId = setInterval(() => {
+      remaining -= 1;
+      if (remaining > 0) {
+        countdownEl.textContent = remaining;
+        if (remaining <= 1) timerBar.classList.add("warn");
+      } else {
+        clearInterval(countdownId);
+        timerBar.classList.remove("running");
+        countdownEl.classList.add("done");
+        countdownEl.textContent = "⏰";
+        promptEl.textContent = "화면을 눌러 정답 확인 👆";
+        promptEl.className = "prompt pulse";
+      }
+    }, 1000);
   }
 
-  function submit() {
-    if (answerEl.disabled) return;
-    const guess = answerEl.value.trim();
-    if (guess.length < 2) { toast("두 글자를 입력하세요", "bad"); return; }
-    const correctTail = current.w.slice(2);
-    handleResult(guess === correctTail, false);
-  }
-
-  function handleResult(correct, timedOut) {
-    clearTimeout(timeoutId);
+  function revealAnswer() {
+    phase = "revealed";
+    clearInterval(countdownId);
     timerBar.classList.remove("running", "warn");
-    answerEl.disabled = true;
+    renderPuzzle(current.w, true);
+    countdownEl.className = "countdown reveal";
+    countdownEl.textContent = current.w;
+    promptEl.textContent = "화면을 눌러 다음 문제 👉";
+    promptEl.className = "prompt pulse";
+  }
 
-    if (correct) {
-      combo += 1;
-      const bonus = combo >= 2 ? combo * 2 : 0;
-      score += 10 + bonus;
-      renderPuzzle(current.w, true, false);
-      toast(bonus ? `정답! +${10 + bonus} (콤보${combo})` : "정답! +10", "good");
-    } else {
-      combo = 0;
-      lives -= 1;
-      renderPuzzle(current.w, true, true);
-      toast(timedOut ? "⏰ 시간 초과!" : "❌ 오답!", "bad");
-    }
-    updateHud();
-
-    setTimeout(() => {
-      if (lives <= 0) endGame();
-      else nextRound();
-    }, 1100);
+  function handleTap() {
+    if (phase === "counting") revealAnswer();
+    else if (phase === "revealed") nextRound();
   }
 
   function endGame() {
-    $("finalScore").textContent = score;
-    $("endMsg").textContent =
-      score >= 200 ? "🏆 사자성어 마스터!" :
-      score >= 100 ? "👍 훌륭해요!" :
-      score >= 50  ? "🙂 좋아요, 다시 도전!" :
-                     "💪 연습이 필요해요!";
+    clearInterval(countdownId);
+    phase = "idle";
+    timerBar.classList.remove("running", "warn");
+    $("finalCount").textContent = count;
     $("endScreen").classList.remove("hidden");
   }
 
   // ===== 이벤트 =====
   $("startBtn").addEventListener("click", startGame);
   $("restartBtn").addEventListener("click", startGame);
-  $("submitBtn").addEventListener("click", submit);
-  answerEl.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") submit();
+  $("quitBtn").addEventListener("click", (e) => { e.stopPropagation(); endGame(); });
+  $("tapArea").addEventListener("click", handleTap);
+  // 데스크톱/리모컨 편의: 스페이스·엔터로도 진행
+  document.addEventListener("keydown", (e) => {
+    if (phase === "idle") return;
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); handleTap(); }
   });
-
-  updateHud();
 </script>
 </body>
 </html>
