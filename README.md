@@ -5,12 +5,15 @@
 
 ## 구성
 ```
-index.html          메인 — 게임 선택
-games/word.html     4글자 이어말하기 (사자성어·유행어, 3초)
-games/chosung.html  초성 퀴즈 (속담·영화·드라마, 타이머 없음)
-games/person.html   인물 퀴즈 (위키백과 사진, 3초)
-style.css           공통 테마
-sound.js            공통 사운드 (초침·팡파레)
+index.html           메인 — 게임 선택
+games/word.html      4글자 이어말하기 (사자성어·유행어, 3초)
+games/chosung.html   초성 퀴즈 (속담·영화·드라마·노래·TV프로그램, 타이머 없음)
+games/person.html    인물 퀴즈 (위키백과 사진, 3초)
+games/flag.html      국기 퀴즈 (국기 이모지, 3초)
+games/emoji.html     이모지 퀴즈 (이모지 조합으로 영화·속담·단어, 타이머 없음)
+games/nonsense.html  넌센스·아재개그 퀴즈 (타이머 없음)
+style.css            공통 테마
+sound.js             공통 사운드 (초침·팡파레)
 ```
 
 ## 플레이

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>넌센스·아재개그 퀴즈 🤪</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="game">
+  <a class="back" href="../index.html">← 메인</a>
+  <h1>넌센스·아재개그 🤪</h1>
+  <p class="subtitle">문제를 읽고 정답을 맞혀보세요!<br/>화면을 누르면 정답이 공개돼요.</p>
+
+  <div class="hud">
+    <div class="stat"><span class="label">문제</span><span class="value" id="count">0</span></div>
+    <button class="btn-quit" id="quitBtn">종료</button>
+  </div>
+
+  <div class="hint-row">
+    <span class="category-badge" id="catBadge"></span>
+  </div>
+
+  <div class="tap-area" id="tapArea">
+    <div class="question-text" id="question"></div>
+    <div class="answer-text" id="answer"></div>
+    <div class="prompt" id="prompt"></div>
+  </div>
+
+  <p class="footer-note">진행자용 도우미 화면 · 종료를 누를 때까지 계속됩니다</p>
+
+  <div class="overlay" id="startScreen">
+    <h2>🤪 넌센스·아재개그</h2>
+    <div class="rules">
+      • 넌센스 문제와 아재개그가 나와요.<br />
+      • 참가자들이 정답을 <b>소리내어</b> 맞혀요.<br />
+      • <b>화면을 터치</b>하면 정답이 공개돼요.<br />
+      • <b>다시 터치</b>하면 다음 문제로. <b>타이머는 없어요!</b>
+    </div>
+    <div class="genre-title">출제할 분류 선택</div>
+    <div class="genre-select" id="genreSelect"></div>
+    <button class="btn-primary" id="startBtn">시작하기 ▶</button>
+  </div>
+
+  <div class="overlay hidden" id="endScreen">
+    <h2>수고하셨어요! 🎉</h2>
+    <p>진행한 문제</p>
+    <div class="big-score" id="finalCount">0</div>
+    <button class="btn-primary" id="restartBtn">다시 시작 ↻</button>
+  </div>
+</div>
+
+<script src="../sound.js"></script>
+<script>
+  // ===== 문제 데이터 (질문 + 정답 + 분류) =====
+  const QUIZ = [
+    // 넌센스
+    { q: "세상에서 가장 뜨거운 바다는?", a: "열바다", c: "넌센스" },
+    { q: "세상에서 가장 추운 바다는?", a: "썰렁해", c: "넌센스" },
+    { q: "왕이 넘어지면?", a: "킹콩", c: "넌센스" },
+    { q: "소금이 죽으면?", a: "죽염", c: "넌센스" },
+    { q: "개가 사람을 가르치면?", a: "개인지도", c: "넌센스" },
+    { q: "발이 두 개 달린 소는?", a: "이발소", c: "넌센스" },
+    { q: "오리를 생으로 먹으면?", a: "회오리", c: "넌센스" },
+    { q: "가장 빠른 새는?", a: "눈 깜짝할 새", c: "넌센스" },
+    { q: "세종대왕이 만든 우유는?", a: "아야어여오요우유", c: "넌센스" },
+    { q: "신발이 화가 나면?", a: "신발끈", c: "넌센스" },
+    { q: "비가 한 시간 동안 내리면?", a: "추적 60분", c: "넌센스" },
+    { q: "사과를 한 입 베어 물면?", a: "파인애플", c: "넌센스" },
+    { q: "도둑이 가장 싫어하는 아이스크림은?", a: "누가바", c: "넌센스" },
+    { q: "다리미가 좋아하는 음식은?", a: "피자(펴자)", c: "넌센스" },
+    { q: "토끼가 강을 건너는 방법은?", a: "깡총(껑충)", c: "넌센스" },
+    { q: "딸기가 직장을 잃으면?", a: "딸기시럽(失業)", c: "넌센스" },
+    { q: "세상에서 가장 가난한 왕은?", a: "최저임금", c: "넌센스" },
+    { q: "꼬리가 길면?", a: "잡힌다", c: "넌센스" },
+    { q: "방귀의 색깔은?", a: "뿡(붕)", c: "넌센스" },
+    { q: "전화기를 영어로 하면?", a: "콜(call)", c: "넌센스" },
+    // 'X은 X인데' 넌센스
+    { q: "말은 말인데 타지 못하는 말은?", a: "거짓말", c: "넌센스" },
+    { q: "개는 개인데 가장 무서운 개는?", a: "번개", c: "넌센스" },
+    { q: "문은 문인데 못 여는 문은?", a: "소문", c: "넌센스" },
+    { q: "산은 산인데 오르지 못하는 산은?", a: "계산", c: "넌센스" },
+    { q: "방은 방인데 못 들어가는 방은?", a: "가방", c: "넌센스" },
+    { q: "차는 차인데 마시지 못하는 차는?", a: "기차", c: "넌센스" },
+    { q: "별은 별인데 가장 슬픈 별은?", a: "이별", c: "넌센스" },
+    { q: "통은 통인데 아픈 통은?", a: "고통", c: "넌센스" },
+    { q: "공은 공인데 차지 못하는 공은?", a: "성공", c: "넌센스" },
+    { q: "굴은 굴인데 못 들어가는 굴은?", a: "눈굴(눈물)", c: "넌센스" },
+    { q: "오리는 오리인데 날지 못하는 오리는?", a: "꾀꼬리", c: "넌센스" },
+    { q: "초는 초인데 불을 못 켜는 초는?", a: "식초", c: "넌센스" },
+    { q: "약은 약인데 못 먹는 약은?", a: "치약", c: "넌센스" },
+    { q: "비는 비인데 내리지 않는 비는?", a: "나비", c: "넌센스" },
+    { q: "소는 소인데 날아다니는 소는?", a: "이산화탄소", c: "넌센스" },
+    // 아재개그
+    { q: "소가 웃으면?", a: "우(牛)하하", c: "아재개그" },
+    { q: "고래가 큰 소리로 부르는 노래는?", a: "고래고래", c: "아재개그" },
+    { q: "오리가 얼면?", a: "언덕(언 duck)", c: "아재개그" },
+    { q: "젊은 닭을 뭐라고 하나?", a: "영(young)계", c: "아재개그" },
+    { q: "햄이 죽기 전에 남긴 말은?", a: "햄릿", c: "아재개그" },
+    { q: "바나나가 웃으면?", a: "바나나킥", c: "아재개그" },
+    { q: "추장이 죽으면?", a: "추모", c: "아재개그" },
+    { q: "콜라가 죽으면?", a: "콜라겐", c: "아재개그" },
+    { q: "아몬드가 죽으면?", a: "다이아몬드", c: "아재개그" },
+    { q: "젖소가 가장 좋아하는 노래는?", a: "우유빛깔", c: "아재개그" },
+    { q: "도넛이 화가 나면?", a: "도넛지(놓지)", c: "아재개그" },
+    { q: "스님이 머리를 기르면?", a: "builder(기른다)", c: "아재개그" },
+    { q: "감자가 줄을 서면?", a: "감자튀김(틈)", c: "아재개그" },
+    { q: "사슴이 죽으면?", a: "다이(die)사슴", c: "아재개그" },
+    { q: "비빔밥을 영어로?", a: "믹스라이스", c: "아재개그" },
+    { q: "세상에서 가장 더운 과일은?", a: "천도복숭아", c: "아재개그" },
+    { q: "햄버거의 색깔은?", a: "버건디", c: "아재개그" },
+    { q: "참새가 가장 좋아하는 빵은?", a: "짹짹(초코)", c: "아재개그" },
+    { q: "용이 사는 아파트는?", a: "드래곤(둥지)", c: "아재개그" },
+    { q: "물고기의 반대말은?", a: "불고기", c: "아재개그" },
+    { q: "기린이 다니는 학교는?", a: "목이 긴(고려대?)…목 학교", c: "아재개그" },
+    { q: "젓가락의 반대말은?", a: "둘가락", c: "아재개그" },
+    { q: "딸기가 회사에 가면?", a: "딸기(잼)", c: "아재개그" },
+    { q: "닭이 우는 이유는?", a: "꼬끼오(꼭 그래)", c: "아재개그" },
+  ];
+
+  let phase = "idle"; // "quiz" | "revealed"
+  let current = null, count = 0, queue = [], pool = [];
+
+  const $ = (id) => document.getElementById(id);
+  const questionEl = $("question"), answerEl = $("answer"), promptEl = $("prompt"), catEl = $("catBadge");
+
+  // ===== 분류 선택 체크박스 (기본 전체 선택) =====
+  const CATEGORIES = [...new Set(QUIZ.map((x) => x.c))];
+  const genreBox = $("genreSelect");
+  CATEGORIES.forEach((c) => {
+    const label = document.createElement("label");
+    label.className = "genre-chip";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = true;
+    cb.value = c;
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(" " + c));
+    genreBox.appendChild(label);
+  });
+  function selectedCats() {
+    return [...genreBox.querySelectorAll("input:checked")].map((i) => i.value);
+  }
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function startGame() {
+    const cats = selectedCats();
+    if (cats.length === 0) { alert("분류를 하나 이상 선택해 주세요!"); return; }
+    initAudio();
+    count = 0;
+    pool = QUIZ.filter((x) => cats.includes(x.c));
+    queue = shuffle(pool);
+    $("startScreen").classList.add("hidden");
+    $("endScreen").classList.add("hidden");
+    nextRound();
+  }
+
+  function nextRound() {
+    phase = "quiz";
+    if (queue.length === 0) queue = shuffle(pool);
+    current = queue.pop();
+    count += 1;
+    $("count").textContent = count;
+    catEl.textContent = current.c;
+    questionEl.textContent = "Q. " + current.q;
+    answerEl.textContent = "";
+    promptEl.textContent = "정답은? 🤔";
+    promptEl.className = "prompt";
+  }
+
+  function revealAnswer() {
+    phase = "revealed";
+    playFanfare();
+    answerEl.textContent = "A. " + current.a;
+    promptEl.textContent = "화면을 눌러 다음 문제 👉";
+    promptEl.className = "prompt pulse";
+  }
+
+  function handleTap() {
+    if (phase === "quiz") revealAnswer();
+    else if (phase === "revealed") nextRound();
+  }
+
+  function endGame() {
+    phase = "idle";
+    $("finalCount").textContent = count;
+    $("endScreen").classList.remove("hidden");
+  }
+
+  $("startBtn").addEventListener("click", startGame);
+  $("restartBtn").addEventListener("click", startGame);
+  $("quitBtn").addEventListener("click", (e) => { e.stopPropagation(); endGame(); });
+  $("tapArea").addEventListener("click", handleTap);
+  document.addEventListener("keydown", (e) => {
+    if (phase === "idle") return;
+    if (e.target && e.target.tagName === "BUTTON") return;
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); handleTap(); }
+  });
+</script>
+</body>
+</html>

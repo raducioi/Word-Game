@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>이모지 퀴즈 🧩</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="game">
+  <a class="back" href="../index.html">← 메인</a>
+  <h1>이모지 퀴즈 🧩</h1>
+  <p class="subtitle">이모지를 보고 무엇을 뜻하는지 맞혀보세요!<br/>화면을 누르면 정답이 공개돼요.</p>
+
+  <div class="hud">
+    <div class="stat"><span class="label">문제</span><span class="value" id="count">0</span></div>
+    <button class="btn-quit" id="quitBtn">종료</button>
+  </div>
+
+  <div class="hint-row">
+    <button class="btn-hint" id="hintBtn">힌트 보기 💡</button>
+    <span class="category-badge hidden" id="catBadge"></span>
+  </div>
+
+  <div class="tap-area" id="tapArea">
+    <div class="emoji-display" id="emoji"></div>
+    <div class="answer-text" id="answer"></div>
+    <div class="prompt" id="prompt"></div>
+  </div>
+
+  <p class="footer-note">진행자용 도우미 화면 · 종료를 누를 때까지 계속됩니다</p>
+
+  <div class="overlay" id="startScreen">
+    <h2>🧩 이모지 퀴즈</h2>
+    <div class="rules">
+      • <b>이모지 조합</b>을 보여줘요. (예: 🦁👑 → 라이온 킹)<br />
+      • 영화·속담·음식·동물 등이 문제로 나와요.<br />
+      • 참가자들이 정답을 <b>소리내어</b> 맞혀요.<br />
+      • <b>화면을 터치</b>하면 정답이 공개돼요.<br />
+      • 막히면 <b>힌트 보기</b>로 분류를 확인할 수 있어요. <b>타이머는 없어요!</b>
+    </div>
+    <div class="genre-title">출제할 분류 선택</div>
+    <div class="genre-select" id="genreSelect"></div>
+    <button class="btn-primary" id="startBtn">시작하기 ▶</button>
+  </div>
+
+  <div class="overlay hidden" id="endScreen">
+    <h2>수고하셨어요! 🎉</h2>
+    <p>진행한 문제</p>
+    <div class="big-score" id="finalCount">0</div>
+    <button class="btn-primary" id="restartBtn">다시 시작 ↻</button>
+  </div>
+</div>
+
+<script src="../sound.js"></script>
+<script>
+  // ===== 이모지 데이터 (이모지 + 정답 + 분류) =====
+  const QUIZ = [
+    // 영화
+    { e: "🦁👑", a: "라이온 킹", c: "영화" },
+    { e: "🕷️🧑", a: "스파이더맨", c: "영화" },
+    { e: "🦇🧑", a: "배트맨", c: "영화" },
+    { e: "❄️👸", a: "겨울왕국", c: "영화" },
+    { e: "🐟🔍", a: "니모를 찾아서", c: "영화" },
+    { e: "🚢🧊💔", a: "타이타닉", c: "영화" },
+    { e: "🦖🏞️", a: "쥬라기 공원", c: "영화" },
+    { e: "🐭👨‍🍳🍝", a: "라따뚜이", c: "영화" },
+    { e: "🧸🤠🚀", a: "토이 스토리", c: "영화" },
+    { e: "🐼🥋", a: "쿵푸팬더", c: "영화" },
+    { e: "👽🚲🌕", a: "이티", c: "영화" },
+    { e: "🦍🏙️✈️", a: "킹콩", c: "영화" },
+    { e: "💍🌋🧙", a: "반지의 제왕", c: "영화" },
+    { e: "🤖👮", a: "터미네이터", c: "영화" },
+    { e: "🐀🍷👨‍🍳", a: "기생충", c: "영화" },
+    { e: "🥋🐝", a: "베스트 키드", c: "영화" },
+    // 속담
+    { e: "🐯🗣️👀", a: "호랑이도 제 말 하면 온다", c: "속담" },
+    { e: "🐸🕳️💧", a: "우물 안 개구리", c: "속담" },
+    { e: "🐮❌🚪🔧", a: "소 잃고 외양간 고친다", c: "속담" },
+    { e: "💡⬇️🌑", a: "등잔 밑이 어둡다", c: "속담" },
+    { e: "🐵🌳⬇️", a: "원숭이도 나무에서 떨어진다", c: "속담" },
+    { e: "🐦👂🌙🐭👂", a: "낮말은 새가 듣고 밤말은 쥐가 듣는다", c: "속담" },
+    { e: "🌫️➕🌫️=⛰️", a: "티끌 모아 태산", c: "속담" },
+    { e: "🍤🐳🥊", a: "고래 싸움에 새우 등 터진다", c: "속담" },
+    { e: "🐦💬🚫👅", a: "발 없는 말이 천리 간다", c: "속담" },
+    { e: "🟢🌶️🔥", a: "작은 고추가 더 맵다", c: "속담" },
+    // 음식
+    { e: "🌶️🍗", a: "양념치킨", c: "음식" },
+    { e: "🥬🍲", a: "김치찌개", c: "음식" },
+    { e: "🐷🔥🍚", a: "제육볶음", c: "음식" },
+    { e: "🍙🌊", a: "김밥", c: "음식" },
+    { e: "🌶️🍜", a: "라면", c: "음식" },
+    { e: "🐔🍲🥢", a: "닭볶음탕", c: "음식" },
+    { e: "🍚🍳🥩🥬", a: "비빔밥", c: "음식" },
+    { e: "🐙🥞", a: "해물파전", c: "음식" },
+    { e: "🍧🫘", a: "팥빙수", c: "음식" },
+    { e: "🥟🍲", a: "만둣국", c: "음식" },
+    // 동물
+    { e: "🦒", a: "기린", c: "동물" },
+    { e: "🦔", a: "고슴도치", c: "동물" },
+    { e: "🦘", a: "캥거루", c: "동물" },
+    { e: "🦏", a: "코뿔소", c: "동물" },
+    { e: "🦛", a: "하마", c: "동물" },
+    { e: "🦦", a: "수달", c: "동물" },
+    { e: "🦫", a: "비버", c: "동물" },
+    { e: "🦩", a: "홍학", c: "동물" },
+    { e: "🦨", a: "스컹크", c: "동물" },
+    { e: "🐧", a: "펭귄", c: "동물" },
+    // 사물·브랜드
+    { e: "🍎📱", a: "애플", c: "브랜드" },
+    { e: "✔️👟", a: "나이키", c: "브랜드" },
+    { e: "🍔👑", a: "버거킹", c: "브랜드" },
+    { e: "🐦💬", a: "트위터", c: "브랜드" },
+    { e: "☕🧜‍♀️", a: "스타벅스", c: "브랜드" },
+    { e: "🐭🏰", a: "디즈니", c: "브랜드" },
+    { e: "🅱️🍔", a: "맥도날드", c: "브랜드" },
+    { e: "📺▶️", a: "유튜브", c: "브랜드" },
+  ];
+
+  let phase = "idle"; // "quiz" | "revealed"
+  let current = null, count = 0, queue = [], pool = [];
+
+  const $ = (id) => document.getElementById(id);
+  const emojiEl = $("emoji"), answerEl = $("answer"), promptEl = $("prompt");
+  const catEl = $("catBadge"), hintBtn = $("hintBtn");
+
+  // ===== 분류 선택 체크박스 (기본 전체 선택) =====
+  const CATEGORIES = [...new Set(QUIZ.map((x) => x.c))];
+  const genreBox = $("genreSelect");
+  CATEGORIES.forEach((c) => {
+    const label = document.createElement("label");
+    label.className = "genre-chip";
+    const cb = document.createElement("input");
+    cb.type = "checkbox";
+    cb.checked = true;
+    cb.value = c;
+    label.appendChild(cb);
+    label.appendChild(document.createTextNode(" " + c));
+    genreBox.appendChild(label);
+  });
+  function selectedCats() {
+    return [...genreBox.querySelectorAll("input:checked")].map((i) => i.value);
+  }
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function startGame() {
+    const cats = selectedCats();
+    if (cats.length === 0) { alert("분류를 하나 이상 선택해 주세요!"); return; }
+    initAudio();
+    count = 0;
+    pool = QUIZ.filter((x) => cats.includes(x.c));
+    queue = shuffle(pool);
+    $("startScreen").classList.add("hidden");
+    $("endScreen").classList.add("hidden");
+    nextRound();
+  }
+
+  function nextRound() {
+    phase = "quiz";
+    if (queue.length === 0) queue = shuffle(pool);
+    current = queue.pop();
+    count += 1;
+    $("count").textContent = count;
+    emojiEl.textContent = current.e;
+    answerEl.textContent = "";
+    catEl.classList.add("hidden");
+    catEl.textContent = "";
+    promptEl.textContent = "무엇일까요? 🤔";
+    promptEl.className = "prompt";
+  }
+
+  function showHint() {
+    if (!current) return;
+    catEl.textContent = "💡 " + current.c;
+    catEl.classList.remove("hidden");
+    hintBtn.blur();
+  }
+
+  function revealAnswer() {
+    phase = "revealed";
+    playFanfare();
+    answerEl.textContent = current.a;
+    promptEl.textContent = "화면을 눌러 다음 문제 👉";
+    promptEl.className = "prompt pulse";
+  }
+
+  function handleTap() {
+    if (phase === "quiz") revealAnswer();
+    else if (phase === "revealed") nextRound();
+  }
+
+  function endGame() {
+    phase = "idle";
+    $("finalCount").textContent = count;
+    $("endScreen").classList.remove("hidden");
+  }
+
+  $("startBtn").addEventListener("click", startGame);
+  $("restartBtn").addEventListener("click", startGame);
+  $("quitBtn").addEventListener("click", (e) => { e.stopPropagation(); endGame(); });
+  hintBtn.addEventListener("click", (e) => { e.stopPropagation(); showHint(); });
+  $("tapArea").addEventListener("click", handleTap);
+  document.addEventListener("keydown", (e) => {
+    if (phase === "idle") return;
+    if (e.target && e.target.tagName === "BUTTON") return;
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); handleTap(); }
+  });
+</script>
+</body>
+</html>

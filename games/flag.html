@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>국기 퀴즈 🚩</title>
+<link rel="stylesheet" href="../style.css" />
+</head>
+<body>
+<div class="game">
+  <a class="back" href="../index.html">← 메인</a>
+  <h1>국기 퀴즈 🚩</h1>
+  <p class="subtitle">국기를 보고 어느 나라인지 3초 안에 맞혀보세요!<br/>화면을 누르면 정답이 공개돼요.</p>
+
+  <div class="hud">
+    <div class="stat"><span class="label">문제</span><span class="value" id="count">0</span></div>
+    <button class="btn-quit" id="quitBtn">종료</button>
+  </div>
+
+  <div class="timer-wrap"><div class="timer-bar" id="timerBar"></div></div>
+  <div class="countdown" id="countdown"></div>
+
+  <div class="tap-area" id="tapArea">
+    <div class="flag-display" id="flag"></div>
+    <div class="answer-text" id="answer"></div>
+    <div class="prompt" id="prompt"></div>
+  </div>
+
+  <p class="footer-note">진행자용 도우미 화면 · 종료를 누를 때까지 계속됩니다</p>
+
+  <div class="overlay" id="startScreen">
+    <h2>🚩 국기 퀴즈</h2>
+    <div class="rules">
+      • <b>국기</b>와 <b>카운트다운(3초)</b>을 보여줘요.<br />
+      • 참가자들이 어느 나라인지 <b>소리내어</b> 맞혀요.<br />
+      • <b>화면을 터치</b>하면 정답(나라 이름)이 공개돼요.<br />
+      • <b>다시 터치</b>하면 다음 문제로 넘어가요.<br />
+      • <b>종료</b>를 누를 때까지 계속됩니다.
+    </div>
+    <button class="btn-primary" id="startBtn">시작하기 ▶</button>
+  </div>
+
+  <div class="overlay hidden" id="endScreen">
+    <h2>수고하셨어요! 🎉</h2>
+    <p>진행한 문제</p>
+    <div class="big-score" id="finalCount">0</div>
+    <button class="btn-primary" id="restartBtn">다시 시작 ↻</button>
+  </div>
+</div>
+
+<script src="../sound.js"></script>
+<script>
+  // ===== 국기 데이터 (국기 이모지 + 나라) =====
+  const FLAGS = [
+    { f: "🇰🇷", n: "대한민국" }, { f: "🇰🇵", n: "북한" }, { f: "🇯🇵", n: "일본" },
+    { f: "🇨🇳", n: "중국" }, { f: "🇹🇼", n: "대만" }, { f: "🇭🇰", n: "홍콩" },
+    { f: "🇺🇸", n: "미국" }, { f: "🇬🇧", n: "영국" }, { f: "🇫🇷", n: "프랑스" },
+    { f: "🇩🇪", n: "독일" }, { f: "🇮🇹", n: "이탈리아" }, { f: "🇪🇸", n: "스페인" },
+    { f: "🇵🇹", n: "포르투갈" }, { f: "🇳🇱", n: "네덜란드" }, { f: "🇧🇪", n: "벨기에" },
+    { f: "🇨🇭", n: "스위스" }, { f: "🇦🇹", n: "오스트리아" }, { f: "🇸🇪", n: "스웨덴" },
+    { f: "🇳🇴", n: "노르웨이" }, { f: "🇩🇰", n: "덴마크" }, { f: "🇫🇮", n: "핀란드" },
+    { f: "🇮🇸", n: "아이슬란드" }, { f: "🇮🇪", n: "아일랜드" }, { f: "🇵🇱", n: "폴란드" },
+    { f: "🇨🇿", n: "체코" }, { f: "🇬🇷", n: "그리스" }, { f: "🇭🇺", n: "헝가리" },
+    { f: "🇷🇴", n: "루마니아" }, { f: "🇧🇬", n: "불가리아" }, { f: "🇭🇷", n: "크로아티아" },
+    { f: "🇷🇸", n: "세르비아" }, { f: "🇸🇰", n: "슬로바키아" }, { f: "🇸🇮", n: "슬로베니아" },
+    { f: "🇱🇺", n: "룩셈부르크" }, { f: "🇷🇺", n: "러시아" }, { f: "🇺🇦", n: "우크라이나" },
+    { f: "🇹🇷", n: "튀르키예" }, { f: "🇨🇦", n: "캐나다" }, { f: "🇲🇽", n: "멕시코" },
+    { f: "🇧🇷", n: "브라질" }, { f: "🇦🇷", n: "아르헨티나" }, { f: "🇨🇱", n: "칠레" },
+    { f: "🇵🇪", n: "페루" }, { f: "🇨🇴", n: "콜롬비아" }, { f: "🇻🇪", n: "베네수엘라" },
+    { f: "🇺🇾", n: "우루과이" }, { f: "🇪🇨", n: "에콰도르" }, { f: "🇨🇺", n: "쿠바" },
+    { f: "🇯🇲", n: "자메이카" }, { f: "🇦🇺", n: "호주" }, { f: "🇳🇿", n: "뉴질랜드" },
+    { f: "🇮🇳", n: "인도" }, { f: "🇮🇩", n: "인도네시아" }, { f: "🇹🇭", n: "태국" },
+    { f: "🇻🇳", n: "베트남" }, { f: "🇵🇭", n: "필리핀" }, { f: "🇲🇾", n: "말레이시아" },
+    { f: "🇸🇬", n: "싱가포르" }, { f: "🇲🇲", n: "미얀마" }, { f: "🇰🇭", n: "캄보디아" },
+    { f: "🇲🇳", n: "몽골" }, { f: "🇰🇿", n: "카자흐스탄" }, { f: "🇵🇰", n: "파키스탄" },
+    { f: "🇧🇩", n: "방글라데시" }, { f: "🇱🇰", n: "스리랑카" }, { f: "🇳🇵", n: "네팔" },
+    { f: "🇸🇦", n: "사우디아라비아" }, { f: "🇦🇪", n: "아랍에미리트" }, { f: "🇶🇦", n: "카타르" },
+    { f: "🇰🇼", n: "쿠웨이트" }, { f: "🇮🇷", n: "이란" }, { f: "🇮🇶", n: "이라크" },
+    { f: "🇮🇱", n: "이스라엘" }, { f: "🇪🇬", n: "이집트" }, { f: "🇲🇦", n: "모로코" },
+    { f: "🇿🇦", n: "남아프리카 공화국" }, { f: "🇳🇬", n: "나이지리아" }, { f: "🇰🇪", n: "케냐" },
+  ];
+
+  const TIME_LIMIT = 3;
+  let phase = "idle"; // "counting" | "revealed"
+  let current = null, count = 0, queue = [], countdownId = null;
+
+  const $ = (id) => document.getElementById(id);
+  const flagEl = $("flag"), answerEl = $("answer"), promptEl = $("prompt");
+  const countdownEl = $("countdown"), timerBar = $("timerBar");
+
+  function shuffle(arr) {
+    const a = [...arr];
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  }
+
+  function startGame() {
+    initAudio();
+    count = 0;
+    queue = shuffle(FLAGS);
+    $("startScreen").classList.add("hidden");
+    $("endScreen").classList.add("hidden");
+    nextRound();
+  }
+
+  function nextRound() {
+    phase = "counting";
+    if (queue.length === 0) queue = shuffle(FLAGS);
+    current = queue.pop();
+    count += 1;
+    $("count").textContent = count;
+    flagEl.textContent = current.f;
+    answerEl.textContent = "";
+    startCountdown();
+  }
+
+  function startCountdown() {
+    clearInterval(countdownId);
+    let remaining = TIME_LIMIT;
+    countdownEl.className = "countdown";
+    countdownEl.textContent = remaining;
+    promptEl.textContent = "어느 나라일까요? 🌍";
+    promptEl.className = "prompt";
+    playTick();
+    timerBar.classList.remove("running", "warn");
+    timerBar.style.setProperty("--time", TIME_LIMIT + "s");
+    void timerBar.offsetWidth;
+    timerBar.classList.add("running");
+    countdownId = setInterval(() => {
+      remaining -= 1;
+      if (remaining > 0) {
+        countdownEl.textContent = remaining;
+        playTick();
+        if (remaining <= 1) timerBar.classList.add("warn");
+      } else {
+        clearInterval(countdownId);
+        timerBar.classList.remove("running");
+        countdownEl.classList.add("done");
+        countdownEl.textContent = "⏰";
+        promptEl.textContent = "화면을 눌러 정답 확인 👆";
+        promptEl.className = "prompt pulse";
+      }
+    }, 1000);
+  }
+
+  function revealAnswer() {
+    phase = "revealed";
+    clearInterval(countdownId);
+    playFanfare();
+    timerBar.classList.remove("running", "warn");
+    answerEl.textContent = current.n;
+    countdownEl.className = "countdown reveal";
+    countdownEl.textContent = "✅";
+    promptEl.textContent = "화면을 눌러 다음 문제 👉";
+    promptEl.className = "prompt pulse";
+  }
+
+  function handleTap() {
+    if (phase === "counting") revealAnswer();
+    else if (phase === "revealed") nextRound();
+  }
+
+  function endGame() {
+    clearInterval(countdownId);
+    phase = "idle";
+    timerBar.classList.remove("running", "warn");
+    $("finalCount").textContent = count;
+    $("endScreen").classList.remove("hidden");
+  }
+
+  $("startBtn").addEventListener("click", startGame);
+  $("restartBtn").addEventListener("click", startGame);
+  $("quitBtn").addEventListener("click", (e) => { e.stopPropagation(); endGame(); });
+  $("tapArea").addEventListener("click", handleTap);
+  document.addEventListener("keydown", (e) => {
+    if (phase === "idle") return;
+    if (e.target && e.target.tagName === "BUTTON") return;
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); handleTap(); }
+  });
+</script>
+</body>
+</html>
