@@ -583,8 +583,8 @@
   }
 
   // 3초 창 종료 시 모인 문구로 한 번만 판정 (최종이 없으면 마지막 중간 결과 사용)
+  // ※ 인식기는 끄지 않고 계속 듣는다(껐다 켜는 지연으로 첫 음성이 누락되는 문제 방지)
   function evaluateVoiceWindow() {
-    stopListening();
     const said = (voiceFinalBuf || voiceLastInterim || "").trim();
     const matched = said && matchAnswer(said, [current.w, current.w.slice(2)], SENS_OPTS[sensLevel]);
     if (matched) {
@@ -695,7 +695,7 @@
   function revealAnswer(byVoice) {
     phase = "revealed";
     clearInterval(countdownId);
-    stopListening();
+    // 인식기는 계속 켜둔다(다음 문제에서 첫 음성 누락 방지). phase!=counting이라 입력은 무시됨.
     playFanfare();
     timerBar.classList.remove("running", "warn");
     renderPuzzle(current.w, true);
