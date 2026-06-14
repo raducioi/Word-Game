@@ -42,7 +42,8 @@
       • <b>화면을 터치</b>하면 정답이 공개돼요.<br />
       • 막히면 <b>힌트 보기</b>로 장르를 확인할 수 있어요.<br />
       • <b>다시 터치</b>하면 다음 문제로. <b>타이머는 없어요!</b><br />
-      • <b>🎤 음성</b>을 켜면 정답을 <b>말로</b> 맞힐 수 있어요. (지원 브라우저)
+      • <b>🎤 음성</b>을 켜면 정답을 <b>말로</b> 맞힐 수 있어요. (지원 브라우저)<br />
+      • 음성 모드에서 <b>"힌트"</b>라고 말하면 장르 힌트가 나와요.
     </div>
     <div class="genre-title">출제할 장르 선택</div>
     <div class="genre-select" id="genreSelect"></div>
@@ -540,6 +541,13 @@
   function handleVoice(transcript, isFinal) {
     if (phase !== "quiz" || !current) return;
     const said = (transcript || "").trim();
+    // 음성 명령: "힌트"(예: "힌트", "힌트 보여줘") → 힌트 노출 후 계속 듣기
+    if (isFinal && said && normalizeKo(said).includes("힌트")) {
+      showHint();
+      heardEl.textContent = "💡 힌트 공개! 계속 말해보세요";
+      heardEl.className = "heard";
+      return;
+    }
     // 각 발화는 독립적으로 판정 (누적하지 않음). 최종 결과일 때만 정답 비교.
     if (isFinal && said && matchAnswer(said, [current.a], SENS_OPTS[sensLevel])) {
       heardEl.textContent = "✅ 정답!  “" + said + "”";
