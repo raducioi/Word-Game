@@ -14,7 +14,10 @@
 
   <div class="hud">
     <div class="stat"><span class="label">문제</span><span class="value" id="count">0</span></div>
-    <button class="btn-quit" id="quitBtn">종료</button>
+    <div class="hud-right">
+      <button class="btn-mic hidden" id="micBtn">🎤 음성</button>
+      <button class="btn-quit" id="quitBtn">종료</button>
+    </div>
   </div>
 
   <div class="timer-wrap"><div class="timer-bar" id="timerBar"></div></div>
@@ -24,6 +27,7 @@
     <div class="flag-display" id="flag"></div>
     <div class="answer-text" id="answer"></div>
     <div class="prompt" id="prompt"></div>
+    <div class="heard" id="heard"></div>
   </div>
 
   <p class="footer-note">국기 이미지 출처: flagcdn.com · 진행자용 도우미 화면</p>
@@ -35,7 +39,12 @@
       • 참가자들이 어느 나라인지 <b>소리내어</b> 맞혀요.<br />
       • <b>화면을 터치</b>하면 정답(나라 이름)이 공개돼요.<br />
       • <b>다시 터치</b>하면 다음 문제로 넘어가요.<br />
-      • 국기 이미지는 인터넷에서 불러와요. <b>인터넷 연결</b>이 필요해요!
+      • 국기 이미지는 인터넷에서 불러와요. <b>인터넷 연결</b>이 필요해요!<br />
+      • <b>🎤 음성</b>을 켜면 <b>3초 안에</b> 나라 이름을 말해 맞혀요. (지원 브라우저)
+    </div>
+    <div class="sens-block hidden" id="sensBlock">
+      <div class="genre-title">🎤 음성 인식 민감도</div>
+      <div class="genre-select" id="sensSelect"></div>
     </div>
     <button class="btn-primary" id="startBtn">시작하기 ▶</button>
   </div>
@@ -49,11 +58,12 @@
 </div>
 
 <script src="../sound.js"></script>
+<script src="../speech.js"></script>
 <script>
   // ===== 국기 데이터 (ISO 국가코드 + 나라) =====
   // 국기는 flagcdn.com 이미지로 표시 (윈도우 포함 모든 환경에서 정상 표시)
   const FLAGS = [
-    { c: "kr", n: "대한민국" }, { c: "kp", n: "북한" }, { c: "jp", n: "일본" },
+    { c: "kr", n: "대한민국", alt: ["한국"] }, { c: "kp", n: "북한", alt: ["조선"] }, { c: "jp", n: "일본" },
     { c: "cn", n: "중국" }, { c: "tw", n: "대만" }, { c: "hk", n: "홍콩" },
     { c: "us", n: "미국" }, { c: "gb", n: "영국" }, { c: "fr", n: "프랑스" },
     { c: "de", n: "독일" }, { c: "it", n: "이탈리아" }, { c: "es", n: "스페인" },
@@ -65,7 +75,7 @@
     { c: "ro", n: "루마니아" }, { c: "bg", n: "불가리아" }, { c: "hr", n: "크로아티아" },
     { c: "rs", n: "세르비아" }, { c: "sk", n: "슬로바키아" }, { c: "si", n: "슬로베니아" },
     { c: "lu", n: "룩셈부르크" }, { c: "ru", n: "러시아" }, { c: "ua", n: "우크라이나" },
-    { c: "tr", n: "튀르키예" }, { c: "ca", n: "캐나다" }, { c: "mx", n: "멕시코" },
+    { c: "tr", n: "튀르키예", alt: ["터키"] }, { c: "ca", n: "캐나다" }, { c: "mx", n: "멕시코" },
     { c: "br", n: "브라질" }, { c: "ar", n: "아르헨티나" }, { c: "cl", n: "칠레" },
     { c: "pe", n: "페루" }, { c: "co", n: "콜롬비아" }, { c: "ve", n: "베네수엘라" },
     { c: "uy", n: "우루과이" }, { c: "ec", n: "에콰도르" }, { c: "cu", n: "쿠바" },
@@ -75,10 +85,10 @@
     { c: "sg", n: "싱가포르" }, { c: "mm", n: "미얀마" }, { c: "kh", n: "캄보디아" },
     { c: "mn", n: "몽골" }, { c: "kz", n: "카자흐스탄" }, { c: "pk", n: "파키스탄" },
     { c: "bd", n: "방글라데시" }, { c: "lk", n: "스리랑카" }, { c: "np", n: "네팔" },
-    { c: "sa", n: "사우디아라비아" }, { c: "ae", n: "아랍에미리트" }, { c: "qa", n: "카타르" },
+    { c: "sa", n: "사우디아라비아", alt: ["사우디"] }, { c: "ae", n: "아랍에미리트", alt: ["에미리트"] }, { c: "qa", n: "카타르" },
     { c: "kw", n: "쿠웨이트" }, { c: "ir", n: "이란" }, { c: "iq", n: "이라크" },
     { c: "il", n: "이스라엘" }, { c: "eg", n: "이집트" }, { c: "ma", n: "모로코" },
-    { c: "za", n: "남아프리카 공화국" }, { c: "ng", n: "나이지리아" }, { c: "ke", n: "케냐" },
+    { c: "za", n: "남아프리카 공화국", alt: ["남아공"] }, { c: "ng", n: "나이지리아" }, { c: "ke", n: "케냐" },
   ];
 
   const TIME_LIMIT = 3;
@@ -88,6 +98,65 @@
   const $ = (id) => document.getElementById(id);
   const flagEl = $("flag"), answerEl = $("answer"), promptEl = $("prompt");
   const countdownEl = $("countdown"), timerBar = $("timerBar");
+  const micBtn = $("micBtn"), heardEl = $("heard");
+
+  // ===== 음성 모드 (3초 안에 한 번 판정, 틀리면 바로 오답) =====
+  let voiceOn = false, voice = null;
+  let voiceFinalBuf = "", voiceLastInterim = "";
+  let sensLevel = localStorage.getItem("voiceSens") || "normal";
+  if (speechSupported()) {
+    micBtn.classList.remove("hidden");
+    $("sensBlock").classList.remove("hidden");
+    buildSensSelect();
+    voiceOn = localStorage.getItem("voiceMode") === "1";
+    updateMicBtn();
+    voice = createVoiceController({
+      lang: "ko-KR",
+      onTranscript: handleVoice,
+      onStateChange: (listening) => micBtn.classList.toggle("listening", listening),
+    });
+  }
+  function buildSensSelect() {
+    [["strict","엄격"],["normal","보통"],["loose","관대"]].forEach(([v, t]) => {
+      const label = document.createElement("label");
+      label.className = "genre-chip";
+      const r = document.createElement("input");
+      r.type = "radio"; r.name = "sens"; r.value = v; r.checked = (v === sensLevel);
+      r.addEventListener("change", () => { if (r.checked) { sensLevel = v; localStorage.setItem("voiceSens", v); } });
+      label.appendChild(r);
+      label.appendChild(document.createTextNode(" " + t));
+      $("sensSelect").appendChild(label);
+    });
+  }
+  function updateMicBtn() {
+    micBtn.classList.toggle("on", voiceOn);
+    micBtn.textContent = voiceOn ? "🎤 음성 ON" : "🎤 음성";
+  }
+  function startListening() { if (voiceOn && voice) voice.start(); }
+  function stopListening() { if (voice) voice.stop(); }
+  function handleVoice(transcript, isFinal) {
+    if (phase !== "counting") return;
+    if (isFinal && (transcript || "").trim()) { voiceFinalBuf = (voiceFinalBuf + " " + transcript).trim(); voiceLastInterim = ""; }
+    else if (!isFinal) { voiceLastInterim = transcript || ""; }
+    const live = (voiceFinalBuf + " " + (isFinal ? "" : (transcript || ""))).trim();
+    heardEl.textContent = live ? "🎤 " + live + " …" : "🎤 듣는 중…";
+    heardEl.className = "heard";
+  }
+  // 3초 종료 → 한 번만 판정 (정답이면 정답, 아니면 바로 오답)
+  function evaluateVoiceWindow() {
+    if (phase !== "counting" || !current) return;
+    const said = (voiceFinalBuf || voiceLastInterim || "").trim();
+    const matched = said && matchAnswer(said, [current.n, ...(current.alt || [])], SENS_OPTS[sensLevel]);
+    if (matched) {
+      heardEl.textContent = "✅ 정답!  “" + said + "”";
+      heardEl.className = "heard ok";
+      revealAnswer("correct");
+    } else {
+      heardEl.textContent = said ? "❌ 오답!  “" + said + "”" : "🤔 못 알아들었어요";
+      heardEl.className = "heard no";
+      revealAnswer("wrong");
+    }
+  }
 
   function shuffle(arr) {
     const a = [...arr];
@@ -115,21 +184,25 @@
     $("count").textContent = count;
     flagEl.innerHTML = '<img class="flag-img" src="https://flagcdn.com/w320/' + current.c + '.png" alt="국기" />';
     answerEl.textContent = "";
+    heardEl.textContent = "";
+    heardEl.className = "heard";
     startCountdown();
   }
 
   function startCountdown() {
     clearInterval(countdownId);
+    voiceFinalBuf = ""; voiceLastInterim = "";
     let remaining = TIME_LIMIT;
     countdownEl.className = "countdown";
     countdownEl.textContent = remaining;
-    promptEl.textContent = "어느 나라일까요? 🌍";
+    promptEl.textContent = voiceOn ? "나라 이름을 말해보세요! 🎤" : "어느 나라일까요? 🌍";
     promptEl.className = "prompt";
     playTick();
     timerBar.classList.remove("running", "warn");
     timerBar.style.setProperty("--time", TIME_LIMIT + "s");
     void timerBar.offsetWidth;
     timerBar.classList.add("running");
+    startListening();
     countdownId = setInterval(() => {
       remaining -= 1;
       if (remaining > 0) {
@@ -141,20 +214,35 @@
         timerBar.classList.remove("running");
         countdownEl.classList.add("done");
         countdownEl.textContent = "⏰";
-        promptEl.textContent = "화면을 눌러 정답 확인 👆";
-        promptEl.className = "prompt pulse";
+        if (voiceOn && voice) {
+          // 3초 종료 → 인식 flush 후 한 번만 판정
+          promptEl.textContent = "인식 결과 확인 중… ⏳";
+          promptEl.className = "prompt";
+          stopListening();
+          setTimeout(evaluateVoiceWindow, 550);
+        } else {
+          promptEl.textContent = "화면을 눌러 정답 확인 👆";
+          promptEl.className = "prompt pulse";
+        }
       }
     }, 1000);
   }
 
-  function revealAnswer() {
+  // result: "correct" | "wrong" | undefined(수동 터치)
+  function revealAnswer(result) {
     phase = "revealed";
     clearInterval(countdownId);
-    playFanfare();
+    stopListening();
     timerBar.classList.remove("running", "warn");
     answerEl.textContent = current.n;
-    countdownEl.className = "countdown reveal";
-    countdownEl.textContent = "✅";
+    if (result === "wrong") {
+      countdownEl.className = "countdown done";
+      countdownEl.textContent = "❌";
+    } else {
+      playFanfare();
+      countdownEl.className = "countdown reveal";
+      countdownEl.textContent = "✅";
+    }
     promptEl.textContent = "화면을 눌러 다음 문제 👉";
     promptEl.className = "prompt pulse";
   }
@@ -167,6 +255,7 @@
   function endGame() {
     clearInterval(countdownId);
     phase = "idle";
+    stopListening();
     timerBar.classList.remove("running", "warn");
     $("finalCount").textContent = count;
     $("endScreen").classList.remove("hidden");
@@ -175,6 +264,14 @@
   $("startBtn").addEventListener("click", startGame);
   $("restartBtn").addEventListener("click", startGame);
   $("quitBtn").addEventListener("click", (e) => { e.stopPropagation(); endGame(); });
+  micBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    voiceOn = !voiceOn;
+    localStorage.setItem("voiceMode", voiceOn ? "1" : "0");
+    updateMicBtn();
+    if (voiceOn && phase === "counting") startListening();
+    else if (!voiceOn) { stopListening(); heardEl.textContent = ""; heardEl.className = "heard"; }
+  });
   $("tapArea").addEventListener("click", handleTap);
   document.addEventListener("keydown", (e) => {
     if (phase === "idle") return;
