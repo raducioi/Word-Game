@@ -527,6 +527,7 @@
   let voice = null;
   let wrongTries = 0; // 이번 문제에서 음성 오답 횟수
   let voiceFinalBuf = ""; // 이번 3초 창에서 인식된 최종 문구 누적
+  let voiceLastInterim = ""; // 최종이 없을 때 쓸 마지막 중간 결과
   let sensLevel = localStorage.getItem("voiceSens") || "normal"; // strict|normal|loose
   if (speechSupported()) {
     micBtn.classList.remove("hidden");
@@ -572,16 +573,19 @@
     if (phase !== "counting") return;
     if (isFinal && (transcript || "").trim()) {
       voiceFinalBuf = (voiceFinalBuf + " " + transcript).trim();
+      voiceLastInterim = "";
+    } else if (!isFinal) {
+      voiceLastInterim = transcript || "";
     }
-    const live = (voiceFinalBuf + " " + (isFinal ? "" : transcript)).trim();
+    const live = (voiceFinalBuf + " " + (isFinal ? "" : (transcript || ""))).trim();
     heardEl.textContent = live ? "🎤 " + live + " …" : "🎤 듣는 중…";
     heardEl.className = "heard";
   }
 
-  // 3초 창 종료 시 모인 문구로 한 번만 판정
+  // 3초 창 종료 시 모인 문구로 한 번만 판정 (최종이 없으면 마지막 중간 결과 사용)
   function evaluateVoiceWindow() {
     stopListening();
-    const said = voiceFinalBuf.trim();
+    const said = (voiceFinalBuf || voiceLastInterim || "").trim();
     const matched = said && matchAnswer(said, [current.w, current.w.slice(2)], SENS_OPTS[sensLevel]);
     if (matched) {
       heardEl.textContent = "✅ 정답!  “" + said + "”";
@@ -654,7 +658,7 @@
 
   function startCountdown() {
     clearInterval(countdownId);
-    voiceFinalBuf = ""; // 새 3초 창 시작 — 누적 초기화
+    voiceFinalBuf = ""; voiceLastInterim = ""; // 새 3초 창 시작 — 누적 초기화
     let remaining = TIME_LIMIT;
     countdownEl.className = "countdown";
     countdownEl.textContent = remaining;
