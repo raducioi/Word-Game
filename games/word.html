@@ -580,6 +580,8 @@
       heardEl.className = "heard";
       return;
     }
+    // 빈 인식(무음·잡음)은 무시 — 카운트하지 않음
+    if (!(transcript || "").trim()) return;
     // ===== 최종 결과로만 비교 =====
     // 인식 대안들 중 하나라도 정답이면 정답 처리 (전체 4글자 또는 가려진 뒤 2글자)
     const candidates = (alts && alts.length) ? alts : [transcript];

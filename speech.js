@@ -70,13 +70,14 @@ function createVoiceController({ lang = "ko-KR", onTranscript, onStateChange } =
   function build() {
     rec = new SR();
     rec.lang = lang;
-    rec.continuous = true;
+    // 한 발화 = 한 번의 최종 결과. 끝나면 onend에서 자동 재시작해 계속 듣는다.
+    rec.continuous = false;
     rec.interimResults = true;
     rec.maxAlternatives = 3;
     rec.onstart = () => { running = true; if (onStateChange) onStateChange(true); };
     rec.onend = () => {
       running = false;
-      if (active) { try { rec.start(); } catch (_) {} }
+      if (active) { setTimeout(() => { if (active && !running) { try { rec.start(); } catch (_) {} } }, 250); }
       else if (onStateChange) onStateChange(false);
     };
     rec.onerror = () => { /* no-speech/aborted 등은 onend에서 재시작 처리 */ };
