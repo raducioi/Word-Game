@@ -525,6 +525,7 @@
   // ===== 음성 모드 =====
   let voiceOn = false;
   let voice = null;
+  let wrongTries = 0; // 이번 문제에서 음성 오답 횟수
   let sensLevel = localStorage.getItem("voiceSens") || "normal"; // strict|normal|loose
   if (speechSupported()) {
     micBtn.classList.remove("hidden");
@@ -578,8 +579,13 @@
       revealAnswer(true);
     } else if (isFinal) {
       // 한 마디 끝났는데 안 맞으면 즉시 오답 표시 (시간 내 다시 시도 가능)
-      heardEl.textContent = "❌ 땡!  “" + transcript + "”";
+      wrongTries += 1;
+      heardEl.textContent = "❌ 땡!  “" + transcript + "”  (" + wrongTries + "/3)";
       heardEl.className = "heard no";
+      // 3번 틀리면 힌트(뜻) 공개
+      if (wrongTries >= 3 && !hintEl.textContent) {
+        hintEl.textContent = "💡 " + current.h;
+      }
     } else {
       // 인식 중(중간 결과)은 참고용으로만
       heardEl.textContent = "🎤 " + transcript;
@@ -618,9 +624,10 @@
     count += 1;
     $("count").textContent = count;
     renderPuzzle(current.w, false);
-    hintEl.textContent = ""; // 설명은 정답 공개 때만
+    hintEl.textContent = ""; // 설명은 정답 공개(또는 3회 오답) 때만
     heardEl.textContent = "";
     heardEl.className = "heard";
+    wrongTries = 0;
     startCountdown();
   }
 
