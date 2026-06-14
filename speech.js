@@ -84,9 +84,10 @@ function createVoiceController({ lang = "ko-KR", onTranscript, onStateChange } =
       if (!onTranscript) return;
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i];
-        for (let k = 0; k < res.length; k++) {
-          onTranscript(res[k].transcript, res.isFinal);
-        }
+        // 한 결과의 여러 대안(alternatives)을 모아 "한 번만" 콜백
+        const alts = [];
+        for (let k = 0; k < res.length; k++) alts.push(res[k].transcript);
+        onTranscript(alts[0] || "", res.isFinal, alts);
       }
     };
   }

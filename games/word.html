@@ -566,15 +566,17 @@
     micBtn.classList.toggle("on", voiceOn);
     micBtn.textContent = voiceOn ? "🎤 음성 ON" : "🎤 음성";
   }
-  function handleVoice(transcript, isFinal) {
+  function handleVoice(transcript, isFinal, alts) {
     if (phase !== "counting" || !current) {
       heardEl.textContent = "🎤 " + transcript;
       heardEl.className = "heard";
       return;
     }
-    // 전체 4글자 또는 가려진 뒤 2글자를 말해도 정답 처리
-    if (matchAnswer(transcript, [current.w, current.w.slice(2)], SENS_OPTS[sensLevel])) {
-      heardEl.textContent = "✅ 정답!  “" + transcript + "”";
+    // 인식 대안들 중 하나라도 정답이면 정답 처리 (전체 4글자 또는 가려진 뒤 2글자)
+    const candidates = (alts && alts.length) ? alts : [transcript];
+    const matched = candidates.find((c) => matchAnswer(c, [current.w, current.w.slice(2)], SENS_OPTS[sensLevel]));
+    if (matched) {
+      heardEl.textContent = "✅ 정답!  “" + matched + "”";
       heardEl.className = "heard ok";
       revealAnswer(true);
     } else if (isFinal) {
