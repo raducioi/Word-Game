@@ -215,11 +215,11 @@
         countdownEl.classList.add("done");
         countdownEl.textContent = "⏰";
         if (voiceOn && voice) {
-          // 3초 종료 → 인식 flush 후 한 번만 판정
+          // 3초 종료 → 멈추지 않고 잠깐 더 들으며 그때까지의 인식 결과로 한 번만 판정
+          // (말하는 중에 끊겨 '못 알아들음'이 되는 것 방지)
           promptEl.textContent = "인식 결과 확인 중… ⏳";
           promptEl.className = "prompt";
-          stopListening();
-          setTimeout(evaluateVoiceWindow, 550);
+          setTimeout(evaluateVoiceWindow, 800);
         } else {
           promptEl.textContent = "화면을 눌러 정답 확인 👆";
           promptEl.className = "prompt pulse";
