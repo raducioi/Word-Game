@@ -70,8 +70,8 @@ function createVoiceController({ lang = "ko-KR", onTranscript, onStateChange } =
   function build() {
     rec = new SR();
     rec.lang = lang;
-    // 한 발화 = 한 번의 최종 결과. 끝나면 onend에서 자동 재시작해 계속 듣는다.
-    rec.continuous = false;
+    // 3초 창 동안 계속 듣고, 게임 쪽에서 창이 끝날 때 모아서 한 번만 판정한다.
+    rec.continuous = true;
     rec.interimResults = true;
     rec.maxAlternatives = 3;
     rec.onstart = () => { running = true; if (onStateChange) onStateChange(true); };

@@ -526,6 +526,7 @@
   let voiceOn = false;
   let voice = null;
   let wrongTries = 0; // 이번 문제에서 음성 오답 횟수
+  let voiceFinalBuf = ""; // 이번 3초 창에서 인식된 최종 문구 누적
   let sensLevel = localStorage.getItem("voiceSens") || "normal"; // strict|normal|loose
   if (speechSupported()) {
     micBtn.classList.remove("hidden");
@@ -566,40 +567,39 @@
     micBtn.classList.toggle("on", voiceOn);
     micBtn.textContent = voiceOn ? "🎤 음성 ON" : "🎤 음성";
   }
-  function handleVoice(transcript, isFinal, alts) {
-    // 중간(스트리밍) 결과는 참고용으로만 표시하고 정답 판정은 하지 않음
-    if (!isFinal) {
-      if (phase === "counting") {
-        heardEl.textContent = "🎤 " + transcript + " …";
-        heardEl.className = "heard";
-      }
-      return;
+  // 인식 결과는 "표시·누적"만. 정답 판정은 3초 창이 끝날 때 한 번만 한다.
+  function handleVoice(transcript, isFinal) {
+    if (phase !== "counting") return;
+    if (isFinal && (transcript || "").trim()) {
+      voiceFinalBuf = (voiceFinalBuf + " " + transcript).trim();
     }
-    if (phase !== "counting" || !current) {
-      heardEl.textContent = "🎤 " + transcript;
-      heardEl.className = "heard";
-      return;
-    }
-    // 빈 인식(무음·잡음)은 무시 — 카운트하지 않음
-    if (!(transcript || "").trim()) return;
-    // ===== 최종 결과로만 비교 =====
-    // 인식 대안들 중 하나라도 정답이면 정답 처리 (전체 4글자 또는 가려진 뒤 2글자)
-    const candidates = (alts && alts.length) ? alts : [transcript];
-    const matched = candidates.find((c) => matchAnswer(c, [current.w, current.w.slice(2)], SENS_OPTS[sensLevel]));
+    const live = (voiceFinalBuf + " " + (isFinal ? "" : transcript)).trim();
+    heardEl.textContent = live ? "🎤 " + live + " …" : "🎤 듣는 중…";
+    heardEl.className = "heard";
+  }
+
+  // 3초 창 종료 시 모인 문구로 한 번만 판정
+  function evaluateVoiceWindow() {
+    stopListening();
+    const said = voiceFinalBuf.trim();
+    const matched = said && matchAnswer(said, [current.w, current.w.slice(2)], SENS_OPTS[sensLevel]);
     if (matched) {
-      heardEl.textContent = "✅ 정답!  “" + matched + "”";
+      heardEl.textContent = "✅ 정답!  “" + said + "”";
       heardEl.className = "heard ok";
       revealAnswer(true);
-    } else {
-      // 한 마디(최종 인식)가 안 맞으면 오답 표시 (시간 내 다시 시도 가능)
-      wrongTries += 1;
-      heardEl.textContent = "❌ 땡!  “" + transcript + "”  (" + wrongTries + "/3)";
-      heardEl.className = "heard no";
-      // 3번 틀리면 힌트(뜻) 공개
-      if (wrongTries >= 3 && !hintEl.textContent) {
-        hintEl.textContent = "💡 " + current.h;
-      }
+      return;
     }
+    if (!said) {
+      heardEl.textContent = "🤔 못 알아들었어요. 다시 말해보세요!";
+      heardEl.className = "heard";
+    } else {
+      wrongTries += 1;
+      heardEl.textContent = "❌ 땡!  “" + said + "”  (" + Math.min(wrongTries, 3) + "/3)";
+      heardEl.className = "heard no";
+      if (wrongTries >= 3 && !hintEl.textContent) hintEl.textContent = "💡 " + current.h;
+    }
+    // 다시 3초 듣기 (재시도). 그 사이 화면을 누르면 바로 정답 공개.
+    setTimeout(() => { if (phase === "counting") startCountdown(); }, 1100);
   }
   function startListening() {
     if (voiceOn && voice) voice.start();
@@ -654,6 +654,7 @@
 
   function startCountdown() {
     clearInterval(countdownId);
+    voiceFinalBuf = ""; // 새 3초 창 시작 — 누적 초기화
     let remaining = TIME_LIMIT;
     countdownEl.className = "countdown";
     countdownEl.textContent = remaining;
@@ -676,8 +677,13 @@
         timerBar.classList.remove("running");
         countdownEl.classList.add("done");
         countdownEl.textContent = "⏰";
-        promptEl.textContent = "화면을 눌러 정답 확인 👆";
-        promptEl.className = "prompt pulse";
+        if (voiceOn && voice) {
+          // 3초 종료 → 그동안 들린 말로 한 번만 판정
+          evaluateVoiceWindow();
+        } else {
+          promptEl.textContent = "화면을 눌러 정답 확인 👆";
+          promptEl.className = "prompt pulse";
+        }
       }
     }, 1000);
   }
