@@ -505,7 +505,7 @@
   const micBtn = $("micBtn"), heardEl = $("heard");
 
   // ===== 음성 모드 (타이머 없음: 정답을 말하면 바로 공개) =====
-  let voiceOn = false, voice = null, voiceBuf = "";
+  let voiceOn = false, voice = null;
   let sensLevel = localStorage.getItem("voiceSens") || "normal";
   if (speechSupported()) {
     micBtn.classList.remove("hidden");
@@ -539,16 +539,15 @@
   function stopListening() { if (voice) voice.stop(); }
   function handleVoice(transcript, isFinal) {
     if (phase !== "quiz" || !current) return;
-    if (isFinal && (transcript || "").trim()) voiceBuf = (voiceBuf + " " + transcript).trim();
-    const live = (voiceBuf + " " + (isFinal ? "" : (transcript || ""))).trim();
-    // 최종 결과가 들어올 때만 판정 (긴 문장이라 중간 결과로는 판정하지 않음)
-    if (isFinal && matchAnswer(voiceBuf, [current.a], SENS_OPTS[sensLevel])) {
-      heardEl.textContent = "✅ 정답!  “" + voiceBuf + "”";
+    const said = (transcript || "").trim();
+    // 각 발화는 독립적으로 판정 (누적하지 않음). 최종 결과일 때만 정답 비교.
+    if (isFinal && said && matchAnswer(said, [current.a], SENS_OPTS[sensLevel])) {
+      heardEl.textContent = "✅ 정답!  “" + said + "”";
       heardEl.className = "heard ok";
       revealAnswer(true);
       return;
     }
-    heardEl.textContent = live ? "🎤 " + live + " …" : "🎤 듣는 중…";
+    heardEl.textContent = said ? "🎤 " + said + (isFinal ? "" : " …") : "🎤 듣는 중…";
     heardEl.className = "heard";
   }
 
@@ -615,7 +614,6 @@
     catEl.textContent = "";
     promptEl.textContent = voiceOn ? "정답을 말해보세요! 🎤" : "정답을 맞혀보세요! 🤔";
     promptEl.className = "prompt";
-    voiceBuf = "";
     heardEl.textContent = "";
     heardEl.className = "heard";
     startListening();
