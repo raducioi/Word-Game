@@ -14,7 +14,10 @@
 
   <div class="hud">
     <div class="stat"><span class="label">문제</span><span class="value" id="count">0</span></div>
-    <button class="btn-quit" id="quitBtn">종료</button>
+    <div class="hud-right">
+      <button class="btn-mic hidden" id="micBtn">🎤 음성</button>
+      <button class="btn-quit" id="quitBtn">종료</button>
+    </div>
   </div>
 
   <div class="hint-row">
@@ -26,6 +29,7 @@
     <div class="chosung-display" id="chosung"></div>
     <div class="answer-text" id="answer"></div>
     <div class="prompt" id="prompt"></div>
+    <div class="heard" id="heard"></div>
   </div>
 
   <p class="footer-note">진행자용 도우미 화면 · 종료를 누를 때까지 계속됩니다</p>
@@ -37,10 +41,15 @@
       • 참가자들이 정답을 <b>소리내어</b> 맞혀요.<br />
       • <b>화면을 터치</b>하면 정답이 공개돼요.<br />
       • 막히면 <b>힌트 보기</b>로 장르를 확인할 수 있어요.<br />
-      • <b>다시 터치</b>하면 다음 문제로. <b>타이머는 없어요!</b>
+      • <b>다시 터치</b>하면 다음 문제로. <b>타이머는 없어요!</b><br />
+      • <b>🎤 음성</b>을 켜면 정답을 <b>말로</b> 맞힐 수 있어요. (지원 브라우저)
     </div>
     <div class="genre-title">출제할 장르 선택</div>
     <div class="genre-select" id="genreSelect"></div>
+    <div class="sens-block hidden" id="sensBlock">
+      <div class="genre-title">🎤 음성 인식 민감도</div>
+      <div class="genre-select" id="sensSelect"></div>
+    </div>
     <button class="btn-primary" id="startBtn">시작하기 ▶</button>
   </div>
 
@@ -53,6 +62,7 @@
 </div>
 
 <script src="../sound.js"></script>
+<script src="../speech.js"></script>
 <script>
   // ===== 문제 데이터 (정답 + 분류) =====
   const QUIZ = [
@@ -492,6 +502,55 @@
   const $ = (id) => document.getElementById(id);
   const chosungEl = $("chosung"), answerEl = $("answer"), promptEl = $("prompt");
   const catEl = $("catBadge"), hintBtn = $("hintBtn");
+  const micBtn = $("micBtn"), heardEl = $("heard");
+
+  // ===== 음성 모드 (타이머 없음: 정답을 말하면 바로 공개) =====
+  let voiceOn = false, voice = null, voiceBuf = "";
+  let sensLevel = localStorage.getItem("voiceSens") || "normal";
+  if (speechSupported()) {
+    micBtn.classList.remove("hidden");
+    $("sensBlock").classList.remove("hidden");
+    buildSensSelect();
+    voiceOn = localStorage.getItem("voiceMode") === "1";
+    updateMicBtn();
+    voice = createVoiceController({
+      lang: "ko-KR",
+      onTranscript: handleVoice,
+      onStateChange: (listening) => micBtn.classList.toggle("listening", listening),
+    });
+  }
+  function buildSensSelect() {
+    [["strict","엄격"],["normal","보통"],["loose","관대"]].forEach(([v, t]) => {
+      const label = document.createElement("label");
+      label.className = "genre-chip";
+      const r = document.createElement("input");
+      r.type = "radio"; r.name = "sens"; r.value = v; r.checked = (v === sensLevel);
+      r.addEventListener("change", () => { if (r.checked) { sensLevel = v; localStorage.setItem("voiceSens", v); } });
+      label.appendChild(r);
+      label.appendChild(document.createTextNode(" " + t));
+      $("sensSelect").appendChild(label);
+    });
+  }
+  function updateMicBtn() {
+    micBtn.classList.toggle("on", voiceOn);
+    micBtn.textContent = voiceOn ? "🎤 음성 ON" : "🎤 음성";
+  }
+  function startListening() { if (voiceOn && voice) voice.start(); }
+  function stopListening() { if (voice) voice.stop(); }
+  function handleVoice(transcript, isFinal) {
+    if (phase !== "quiz" || !current) return;
+    if (isFinal && (transcript || "").trim()) voiceBuf = (voiceBuf + " " + transcript).trim();
+    const live = (voiceBuf + " " + (isFinal ? "" : (transcript || ""))).trim();
+    // 최종 결과가 들어올 때만 판정 (긴 문장이라 중간 결과로는 판정하지 않음)
+    if (isFinal && matchAnswer(voiceBuf, [current.a], SENS_OPTS[sensLevel])) {
+      heardEl.textContent = "✅ 정답!  “" + voiceBuf + "”";
+      heardEl.className = "heard ok";
+      revealAnswer(true);
+      return;
+    }
+    heardEl.textContent = live ? "🎤 " + live + " …" : "🎤 듣는 중…";
+    heardEl.className = "heard";
+  }
 
   // 한글 글자 수 (공백·기호·숫자 제외) — 3자 이상만 출제
   function koLen(s) {
@@ -554,8 +613,12 @@
     // 힌트(장르) 초기화 — 새 문제마다 다시 가림
     catEl.classList.add("hidden");
     catEl.textContent = "";
-    promptEl.textContent = "정답을 맞혀보세요! 🤔";
+    promptEl.textContent = voiceOn ? "정답을 말해보세요! 🎤" : "정답을 맞혀보세요! 🤔";
     promptEl.className = "prompt";
+    voiceBuf = "";
+    heardEl.textContent = "";
+    heardEl.className = "heard";
+    startListening();
   }
 
   function showHint() {
@@ -565,11 +628,12 @@
     hintBtn.blur(); // 포커스 해제 → 스페이스/엔터 중복 입력 방지
   }
 
-  function revealAnswer() {
+  function revealAnswer(byVoice) {
     phase = "revealed";
+    stopListening();
     playFanfare();
     answerEl.textContent = current.a;
-    promptEl.textContent = "화면을 눌러 다음 문제 👉";
+    promptEl.textContent = (byVoice ? "🎤 정답! " : "") + "화면을 눌러 다음 문제 👉";
     promptEl.className = "prompt pulse";
   }
 
@@ -580,6 +644,7 @@
 
   function endGame() {
     phase = "idle";
+    stopListening();
     $("finalCount").textContent = count;
     $("endScreen").classList.remove("hidden");
   }
@@ -588,6 +653,14 @@
   $("restartBtn").addEventListener("click", startGame);
   $("quitBtn").addEventListener("click", (e) => { e.stopPropagation(); endGame(); });
   hintBtn.addEventListener("click", (e) => { e.stopPropagation(); showHint(); });
+  micBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    voiceOn = !voiceOn;
+    localStorage.setItem("voiceMode", voiceOn ? "1" : "0");
+    updateMicBtn();
+    if (voiceOn && phase === "quiz") startListening();
+    else if (!voiceOn) { stopListening(); heardEl.textContent = ""; heardEl.className = "heard"; }
+  });
   $("tapArea").addEventListener("click", handleTap);
   document.addEventListener("keydown", (e) => {
     if (phase === "idle") return;

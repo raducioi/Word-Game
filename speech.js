@@ -54,11 +54,12 @@ function matchAnswer(transcript, answers, opts) {
   return false;
 }
 
-// 민감도 레벨 → matchAnswer 옵션 (짧은 단어는 편집거리 허용을 0으로: 1글자만 달라도 오답)
+// 민감도 레벨 → matchAnswer 옵션
+// 짧은 답(<6자)은 보통/엄격에서 정확히 일치, 긴 답은 길이에 비례해 오차 허용(긴 문장 STT 대비)
 const SENS_OPTS = {
-  strict: { partial: false, edits: () => 0 },                          // 정확히 일치만
-  normal: { partial: true,  edits: (n) => (n >= 6 ? 1 : 0) },          // 6자 이상 긴 답만 1글자 허용
-  loose:  { partial: true,  edits: (n) => (n >= 6 ? 2 : (n >= 4 ? 1 : 0)) }, // 관대: 짧아도 1글자 허용
+  strict: { partial: false, edits: () => 0 },
+  normal: { partial: true,  edits: (n) => (n >= 6 ? Math.max(1, Math.round(n * 0.15)) : 0) },
+  loose:  { partial: true,  edits: (n) => (n >= 4 ? Math.max(1, Math.round(n * 0.25)) : 0) },
 };
 
 // 지속 인식 컨트롤러 (자동 재시작)
