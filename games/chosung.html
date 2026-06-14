@@ -541,12 +541,23 @@
   function handleVoice(transcript, isFinal) {
     if (phase !== "quiz" || !current) return;
     const said = (transcript || "").trim();
-    // 음성 명령: "힌트"(예: "힌트", "힌트 보여줘") → 힌트 노출 후 계속 듣기
-    if (isFinal && said && normalizeKo(said).includes("힌트")) {
-      showHint();
-      heardEl.textContent = "💡 힌트 공개! 계속 말해보세요";
-      heardEl.className = "heard";
-      return;
+    // 음성 명령은 "짧은 발화"일 때만 인식 (긴 정답 안에 명령어가 들어가도 오인 안 되게)
+    if (isFinal && said && koLen(said) <= 6) {
+      const ns = normalizeKo(said);
+      // "힌트"(예: "힌트", "힌트 보여줘") → 힌트 노출 후 계속 듣기
+      if (ns.includes("힌트")) {
+        showHint();
+        heardEl.textContent = "💡 힌트 공개! 계속 말해보세요";
+        heardEl.className = "heard";
+        return;
+      }
+      // "몰라/모르겠어/패스/통과/스킵" → 포기하고 정답 공개
+      if (ns.includes("몰라") || ns.includes("모르") || ns.includes("패스") || ns.includes("통과") || ns.includes("스킵")) {
+        heardEl.textContent = "🙅 패스! 정답을 공개합니다";
+        heardEl.className = "heard";
+        revealAnswer(false);
+        return;
+      }
     }
     // 각 발화는 독립적으로 판정 (누적하지 않음). 최종 결과일 때만 정답 비교.
     if (isFinal && said && matchAnswer(said, [current.a], SENS_OPTS[sensLevel])) {
