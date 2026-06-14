@@ -470,3 +470,15 @@ button:active { transform: scale(.96); }
   0%, 100% { box-shadow: 0 0 0 0 rgba(6,214,160,.5); }
   50% { box-shadow: 0 0 0 8px rgba(6,214,160,0); }
 }
+
+/* 음성: 들린 말 표시 + 민감도 선택 */
+.heard {
+  text-align: center;
+  color: var(--accent2);
+  font-size: .82rem;
+  min-height: 1.2em;
+  margin-top: 6px;
+  opacity: .9;
+  word-break: keep-all;
+}
+.sens-block { display: flex; flex-direction: column; gap: 8px; align-items: center; }

@@ -34,7 +34,11 @@ function levenshtein(a, b) {
 }
 
 // 들린 말(transcript)이 정답 후보(answers) 중 하나와 충분히 일치하는지
-function matchAnswer(transcript, answers) {
+// opts: { tol: 편집거리 허용 비율(0이면 끔), partial: 부분 포함 허용 }
+function matchAnswer(transcript, answers, opts) {
+  opts = opts || {};
+  const tolRatio = opts.tol != null ? opts.tol : 0.25;
+  const allowPartial = opts.partial !== false;
   const t = normalizeKo(transcript);
   if (!t) return false;
   const list = Array.isArray(answers) ? answers : [answers];
@@ -42,12 +46,21 @@ function matchAnswer(transcript, answers) {
     const a = normalizeKo(ans);
     if (!a) continue;
     if (t === a) return true;
-    if (a.length >= 2 && (t.includes(a) || a.includes(t))) return true; // 부분 포함
-    const tol = Math.max(1, Math.floor(a.length * 0.25)); // 25% 오차 허용
-    if (levenshtein(t, a) <= tol) return true;
+    if (allowPartial && a.length >= 2 && (t.includes(a) || a.includes(t))) return true;
+    if (tolRatio > 0) {
+      const tol = Math.max(1, Math.floor(a.length * tolRatio));
+      if (levenshtein(t, a) <= tol) return true;
+    }
   }
   return false;
 }
+
+// 민감도 레벨 → matchAnswer 옵션
+const SENS_OPTS = {
+  strict: { tol: 0, partial: false },
+  normal: { tol: 0.25, partial: true },
+  loose: { tol: 0.5, partial: true },
+};
 
 // 지속 인식 컨트롤러 (자동 재시작)
 function createVoiceController({ lang = "ko-KR", onTranscript, onStateChange } = {}) {

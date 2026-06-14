@@ -27,6 +27,7 @@
     <div class="puzzle" id="puzzle"></div>
     <div class="hint" id="hint"></div>
     <div class="prompt" id="prompt"></div>
+    <div class="heard" id="heard"></div>
   </div>
 
   <p class="footer-note">진행자용 도우미 화면 · 종료를 누를 때까지 계속됩니다</p>
@@ -39,6 +40,10 @@
       • <b>화면을 터치</b>하면 정답이 공개돼요.<br />
       • <b>다시 터치</b>하면 다음 문제로 넘어가요.<br />
       • <b>🎤 음성</b> 버튼을 켜면 정답을 <b>말로</b> 맞힐 수 있어요. (지원 브라우저)
+    </div>
+    <div class="sens-block hidden" id="sensBlock">
+      <div class="genre-title">🎤 음성 인식 민감도</div>
+      <div class="genre-select" id="sensSelect"></div>
     </div>
     <button class="btn-primary" id="startBtn">시작하기 ▶</button>
   </div>
@@ -515,13 +520,16 @@
   const $ = (id) => document.getElementById(id);
   const puzzleEl = $("puzzle"), hintEl = $("hint"), promptEl = $("prompt");
   const countdownEl = $("countdown"), timerBar = $("timerBar");
-  const micBtn = $("micBtn");
+  const micBtn = $("micBtn"), heardEl = $("heard");
 
   // ===== 음성 모드 =====
   let voiceOn = false;
   let voice = null;
+  let sensLevel = localStorage.getItem("voiceSens") || "normal"; // strict|normal|loose
   if (speechSupported()) {
     micBtn.classList.remove("hidden");
+    $("sensBlock").classList.remove("hidden");
+    buildSensSelect();
     voiceOn = localStorage.getItem("voiceMode") === "1";
     updateMicBtn();
     voice = createVoiceController({
@@ -530,14 +538,39 @@
       onStateChange: (listening) => micBtn.classList.toggle("listening", listening),
     });
   }
+  function buildSensSelect() {
+    const opts = [
+      { v: "strict", t: "엄격" },
+      { v: "normal", t: "보통" },
+      { v: "loose", t: "관대" },
+    ];
+    const box = $("sensSelect");
+    opts.forEach((o) => {
+      const label = document.createElement("label");
+      label.className = "genre-chip";
+      const r = document.createElement("input");
+      r.type = "radio";
+      r.name = "sens";
+      r.value = o.v;
+      r.checked = (o.v === sensLevel);
+      r.addEventListener("change", () => {
+        if (r.checked) { sensLevel = o.v; localStorage.setItem("voiceSens", o.v); }
+      });
+      label.appendChild(r);
+      label.appendChild(document.createTextNode(" " + o.t));
+      box.appendChild(label);
+    });
+  }
   function updateMicBtn() {
     micBtn.classList.toggle("on", voiceOn);
     micBtn.textContent = voiceOn ? "🎤 음성 ON" : "🎤 음성";
   }
   function handleVoice(transcript) {
+    // 들린 말 화면에 표시
+    heardEl.textContent = "🎤 " + transcript;
     if (phase !== "counting" || !current) return;
     // 전체 4글자 또는 가려진 뒤 2글자를 말해도 정답 처리
-    if (matchAnswer(transcript, [current.w, current.w.slice(2)])) {
+    if (matchAnswer(transcript, [current.w, current.w.slice(2)], SENS_OPTS[sensLevel])) {
       revealAnswer(true);
     }
   }
@@ -574,6 +607,7 @@
     $("count").textContent = count;
     renderPuzzle(current.w, false);
     hintEl.textContent = ""; // 설명은 정답 공개 때만
+    heardEl.textContent = "";
     startCountdown();
   }
 
@@ -656,7 +690,7 @@
     localStorage.setItem("voiceMode", voiceOn ? "1" : "0");
     updateMicBtn();
     if (voiceOn && phase === "counting") startListening();
-    else if (!voiceOn) stopListening();
+    else if (!voiceOn) { stopListening(); heardEl.textContent = ""; }
   });
   $("tapArea").addEventListener("click", handleTap);
   document.addEventListener("keydown", (e) => {
