@@ -34,10 +34,10 @@ function levenshtein(a, b) {
 }
 
 // 들린 말(transcript)이 정답 후보(answers) 중 하나와 충분히 일치하는지
-// opts: { tol: 편집거리 허용 비율(0이면 끔), partial: 부분 포함 허용 }
+// opts: { edits: (정답길이)=>허용 편집거리, partial: 부분 포함 허용 }
 function matchAnswer(transcript, answers, opts) {
   opts = opts || {};
-  const tolRatio = opts.tol != null ? opts.tol : 0.25;
+  const editsFn = typeof opts.edits === "function" ? opts.edits : () => 1;
   const allowPartial = opts.partial !== false;
   const t = normalizeKo(transcript);
   if (!t) return false;
@@ -46,20 +46,19 @@ function matchAnswer(transcript, answers, opts) {
     const a = normalizeKo(ans);
     if (!a) continue;
     if (t === a) return true;
-    if (allowPartial && a.length >= 2 && (t.includes(a) || a.includes(t))) return true;
-    if (tolRatio > 0) {
-      const tol = Math.max(1, Math.floor(a.length * tolRatio));
-      if (levenshtein(t, a) <= tol) return true;
-    }
+    // 부분 일치: "정답 전체"가 발화 안에 들어있을 때만 (3글자 이상)
+    if (allowPartial && a.length >= 3 && t.includes(a)) return true;
+    const cap = editsFn(a.length);
+    if (cap > 0 && levenshtein(t, a) <= cap) return true;
   }
   return false;
 }
 
-// 민감도 레벨 → matchAnswer 옵션
+// 민감도 레벨 → matchAnswer 옵션 (편집거리 허용을 보수적으로)
 const SENS_OPTS = {
-  strict: { tol: 0, partial: false },
-  normal: { tol: 0.25, partial: true },
-  loose: { tol: 0.5, partial: true },
+  strict: { partial: false, edits: () => 0 },                       // 정확히 일치만
+  normal: { partial: true,  edits: (n) => (n >= 3 ? 1 : 0) },       // 1글자 오차까지
+  loose:  { partial: true,  edits: (n) => (n >= 7 ? 2 : (n >= 3 ? 1 : 0)) }, // 긴 문장만 2글자
 };
 
 // 지속 인식 컨트롤러 (자동 재시작)
