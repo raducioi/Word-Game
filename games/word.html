@@ -514,6 +514,7 @@
   ];
 
   const TIME_LIMIT = 3;
+  const MAX_VOICE_TRIES = 4; // 3회 실패 시 힌트, 4회째(힌트 후)도 실패하면 음성 중단→터치 대기
   let phase = "idle"; // "counting" | "revealed"
   let current = null, count = 0, queue = [], countdownId = null;
 
@@ -593,17 +594,25 @@
       revealAnswer(true);
       return;
     }
-    if (!said) {
-      heardEl.textContent = "🤔 못 알아들었어요. 다시 말해보세요!";
-      heardEl.className = "heard";
+    // 오답이든 못 알아들었든 모두 1회 실패로 카운트
+    wrongTries += 1;
+    const n = Math.min(wrongTries, 3);
+    heardEl.textContent = said
+      ? "❌ 땡!  “" + said + "”  (" + n + "/3)"
+      : "🤔 못 알아들었어요  (" + n + "/3)";
+    heardEl.className = "heard no";
+    // 3회째에 힌트 공개
+    if (wrongTries >= 3 && !hintEl.textContent) hintEl.textContent = "💡 " + current.h;
+
+    if (wrongTries >= MAX_VOICE_TRIES) {
+      // 힌트를 보고도(4번째) 실패 → 더는 음성 대기 안 함, 터치로 정답 확인
+      stopListening();
+      promptEl.textContent = "화면을 눌러 정답 확인 👆";
+      promptEl.className = "prompt pulse";
     } else {
-      wrongTries += 1;
-      heardEl.textContent = "❌ 땡!  “" + said + "”  (" + Math.min(wrongTries, 3) + "/3)";
-      heardEl.className = "heard no";
-      if (wrongTries >= 3 && !hintEl.textContent) hintEl.textContent = "💡 " + current.h;
+      // 다시 3초 듣기 (재시도). 그 사이 화면을 누르면 바로 정답 공개.
+      setTimeout(() => { if (phase === "counting") startCountdown(); }, 1100);
     }
-    // 다시 3초 듣기 (재시도). 그 사이 화면을 누르면 바로 정답 공개.
-    setTimeout(() => { if (phase === "counting") startCountdown(); }, 1100);
   }
   function startListening() {
     if (voiceOn && voice) voice.start();
