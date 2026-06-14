@@ -565,13 +565,25 @@
     micBtn.classList.toggle("on", voiceOn);
     micBtn.textContent = voiceOn ? "🎤 음성 ON" : "🎤 음성";
   }
-  function handleVoice(transcript) {
-    // 들린 말 화면에 표시
-    heardEl.textContent = "🎤 " + transcript;
-    if (phase !== "counting" || !current) return;
+  function handleVoice(transcript, isFinal) {
+    if (phase !== "counting" || !current) {
+      heardEl.textContent = "🎤 " + transcript;
+      heardEl.className = "heard";
+      return;
+    }
     // 전체 4글자 또는 가려진 뒤 2글자를 말해도 정답 처리
     if (matchAnswer(transcript, [current.w, current.w.slice(2)], SENS_OPTS[sensLevel])) {
+      heardEl.textContent = "✅ 정답!  “" + transcript + "”";
+      heardEl.className = "heard ok";
       revealAnswer(true);
+    } else if (isFinal) {
+      // 한 마디 끝났는데 안 맞으면 즉시 오답 표시 (시간 내 다시 시도 가능)
+      heardEl.textContent = "❌ 땡!  “" + transcript + "”";
+      heardEl.className = "heard no";
+    } else {
+      // 인식 중(중간 결과)은 참고용으로만
+      heardEl.textContent = "🎤 " + transcript;
+      heardEl.className = "heard";
     }
   }
   function startListening() {
@@ -608,6 +620,7 @@
     renderPuzzle(current.w, false);
     hintEl.textContent = ""; // 설명은 정답 공개 때만
     heardEl.textContent = "";
+    heardEl.className = "heard";
     startCountdown();
   }
 
@@ -690,7 +703,7 @@
     localStorage.setItem("voiceMode", voiceOn ? "1" : "0");
     updateMicBtn();
     if (voiceOn && phase === "counting") startListening();
-    else if (!voiceOn) { stopListening(); heardEl.textContent = ""; }
+    else if (!voiceOn) { stopListening(); heardEl.textContent = ""; heardEl.className = "heard"; }
   });
   $("tapArea").addEventListener("click", handleTap);
   document.addEventListener("keydown", (e) => {

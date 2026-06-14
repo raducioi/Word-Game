@@ -474,11 +474,14 @@ button:active { transform: scale(.96); }
 /* 음성: 들린 말 표시 + 민감도 선택 */
 .heard {
   text-align: center;
-  color: var(--accent2);
+  color: var(--muted);
   font-size: .82rem;
   min-height: 1.2em;
   margin-top: 6px;
   opacity: .9;
   word-break: keep-all;
+  font-weight: 700;
 }
+.heard.ok { color: var(--accent2); opacity: 1; }
+.heard.no { color: var(--danger); opacity: 1; }
 .sens-block { display: flex; flex-direction: column; gap: 8px; align-items: center; }
