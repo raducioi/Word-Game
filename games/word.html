@@ -14,7 +14,10 @@
 
   <div class="hud">
     <div class="stat"><span class="label">문제</span><span class="value" id="count">0</span></div>
-    <button class="btn-quit" id="quitBtn">종료</button>
+    <div class="hud-right">
+      <button class="btn-mic hidden" id="micBtn">🎤 음성</button>
+      <button class="btn-quit" id="quitBtn">종료</button>
+    </div>
   </div>
 
   <div class="timer-wrap"><div class="timer-bar" id="timerBar"></div></div>
@@ -35,7 +38,7 @@
       • 참가자들이 나머지 2글자를 <b>소리내어</b> 맞혀요.<br />
       • <b>화면을 터치</b>하면 정답이 공개돼요.<br />
       • <b>다시 터치</b>하면 다음 문제로 넘어가요.<br />
-      • <b>종료</b>를 누를 때까지 계속됩니다.
+      • <b>🎤 음성</b> 버튼을 켜면 정답을 <b>말로</b> 맞힐 수 있어요. (지원 브라우저)
     </div>
     <button class="btn-primary" id="startBtn">시작하기 ▶</button>
   </div>
@@ -49,6 +52,7 @@
 </div>
 
 <script src="../sound.js"></script>
+<script src="../speech.js"></script>
 <script>
   // ===== 단어 데이터 (4글자 + 뜻) =====
   const WORDS = [
@@ -511,6 +515,38 @@
   const $ = (id) => document.getElementById(id);
   const puzzleEl = $("puzzle"), hintEl = $("hint"), promptEl = $("prompt");
   const countdownEl = $("countdown"), timerBar = $("timerBar");
+  const micBtn = $("micBtn");
+
+  // ===== 음성 모드 =====
+  let voiceOn = false;
+  let voice = null;
+  if (speechSupported()) {
+    micBtn.classList.remove("hidden");
+    voiceOn = localStorage.getItem("voiceMode") === "1";
+    updateMicBtn();
+    voice = createVoiceController({
+      lang: "ko-KR",
+      onTranscript: handleVoice,
+      onStateChange: (listening) => micBtn.classList.toggle("listening", listening),
+    });
+  }
+  function updateMicBtn() {
+    micBtn.classList.toggle("on", voiceOn);
+    micBtn.textContent = voiceOn ? "🎤 음성 ON" : "🎤 음성";
+  }
+  function handleVoice(transcript) {
+    if (phase !== "counting" || !current) return;
+    // 전체 4글자 또는 가려진 뒤 2글자를 말해도 정답 처리
+    if (matchAnswer(transcript, [current.w, current.w.slice(2)])) {
+      revealAnswer(true);
+    }
+  }
+  function startListening() {
+    if (voiceOn && voice) voice.start();
+  }
+  function stopListening() {
+    if (voice) voice.stop();
+  }
 
   function shuffle(arr) {
     const a = [...arr];
@@ -558,13 +594,14 @@
     let remaining = TIME_LIMIT;
     countdownEl.className = "countdown";
     countdownEl.textContent = remaining;
-    promptEl.textContent = "정답을 외쳐보세요! 🗣️";
+    promptEl.textContent = voiceOn ? "정답을 말해보세요! 🎤" : "정답을 외쳐보세요! 🗣️";
     promptEl.className = "prompt";
     playTick();
     timerBar.classList.remove("running", "warn");
     timerBar.style.setProperty("--time", TIME_LIMIT + "s");
     void timerBar.offsetWidth;
     timerBar.classList.add("running");
+    startListening();
     countdownId = setInterval(() => {
       remaining -= 1;
       if (remaining > 0) {
@@ -582,16 +619,17 @@
     }, 1000);
   }
 
-  function revealAnswer() {
+  function revealAnswer(byVoice) {
     phase = "revealed";
     clearInterval(countdownId);
+    stopListening();
     playFanfare();
     timerBar.classList.remove("running", "warn");
     renderPuzzle(current.w, true);
     hintEl.textContent = "💡 " + current.h;
     countdownEl.className = "countdown reveal";
     countdownEl.textContent = current.w;
-    promptEl.textContent = "화면을 눌러 다음 문제 👉";
+    promptEl.textContent = byVoice ? "🎤 정답! 화면을 눌러 다음 문제 👉" : "화면을 눌러 다음 문제 👉";
     promptEl.className = "prompt pulse";
   }
 
@@ -603,6 +641,7 @@
   function endGame() {
     clearInterval(countdownId);
     phase = "idle";
+    stopListening();
     timerBar.classList.remove("running", "warn");
     $("finalCount").textContent = count;
     $("endScreen").classList.remove("hidden");
@@ -611,6 +650,14 @@
   $("startBtn").addEventListener("click", startGame);
   $("restartBtn").addEventListener("click", startGame);
   $("quitBtn").addEventListener("click", (e) => { e.stopPropagation(); endGame(); });
+  micBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    voiceOn = !voiceOn;
+    localStorage.setItem("voiceMode", voiceOn ? "1" : "0");
+    updateMicBtn();
+    if (voiceOn && phase === "counting") startListening();
+    else if (!voiceOn) stopListening();
+  });
   $("tapArea").addEventListener("click", handleTap);
   document.addEventListener("keydown", (e) => {
     if (phase === "idle") return;

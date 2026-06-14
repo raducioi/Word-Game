@@ -454,3 +454,19 @@ button:active { transform: scale(.96); }
 @media (max-height: 680px) {
   .flag-img { width: 150px; }
 }
+
+/* ===== 음성 모드 버튼 ===== */
+.hud-right { display: flex; gap: 8px; align-items: center; }
+.btn-mic {
+  padding: 8px 14px;
+  background: rgba(6,214,160,.15);
+  color: var(--accent2);
+  font-size: .85rem;
+  border: 1px solid rgba(6,214,160,.4);
+}
+.btn-mic.on { background: var(--accent2); color: #06301f; }
+.btn-mic.listening { animation: micpulse 1s ease-in-out infinite; }
+@keyframes micpulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(6,214,160,.5); }
+  50% { box-shadow: 0 0 0 8px rgba(6,214,160,0); }
+}
